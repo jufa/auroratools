@@ -1,0 +1,28 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "imagestack Debugger: Current File with Arguments",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/imagestack.py",
+      "python": "${command:python.interpreterPath}",
+      "console": "integratedTerminal",
+      // "args": "${command:pickArgs}"
+      "args": "--path '/Volumes/X8 Kuzub/AurorEye/seq_2024-03-06T02-13-13' --first 0 --last 100"
+    },
+    {
+      "name": "Keogram Debugger: Current File with Arguments",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/keogram.py",
+      "python": "${command:python.interpreterPath}",
+      "console": "integratedTerminal",
+      // "args": "${command:pickArgs}"
+      "args": "--path '/Volumes/X8 Kuzub/AurorEye/seq_2024-03-21T07-47-10 UNIT07'"
+    }
+  ]
+}
