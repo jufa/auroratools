@@ -20,6 +20,8 @@ class KeogramGenerator():
     self.declination = 0
     self.prerotate = 0
     self.prescale = 400
+    self.geom_dirty = True
+    self.color_dirty = True
 
   def get_image_file_list(self, path):
     if self.image_file_list:
@@ -180,10 +182,17 @@ class KeogramGenerator():
     windowName = 'main'
     self.window = windowName
     cv2.namedWindow(self.window, cv2.WINDOW_NORMAL)
-    # cv2.resizeWindow(self.window, 800, 800)
     cv2.createTrackbar('Image', self.window, 0, file_count, self.on_change_image)
     cv2.createTrackbar('Rotation', self.window, 0, 360, self.on_change_rotation)
     cv2.createTrackbar('Declination', self.window, 50, 100, self.on_change_declination)
+    cv2.createTrackbar('Contrast', self.window, 200, 400, self.on_change_contrast)
+    cv2.createTrackbar('Brightness', self.window, 200, 400, self.on_change_brightness)
+    cv2.createTrackbar('Saturation', self.window, 200, 400, self.on_change_saturation)
+    cv2.createTrackbar('NR OFF<->ON', self.window, 0, 100, self.on_toggle_denoise)
+    # cv2.createTrackbar('Denoise HLum', self.window, 0, 20, self.on_change_denoise_h_luminosity)
+    # cv2.createTrackbar('Denoise HCol', self.window, 0, 20, self.on_change_denoise_h_color)
+    # cv2.createTrackbar('Denoise TemplateSize', self.window, 0, 20, self.on_change_denoise_template_window_size)
+    # cv2.createTrackbar('Denoise SearchSize', self.window, 0, 20, self.on_change_denoise_template_search_size)
     cv2.resizeWindow(self.window, 800, 800)
     self.draw()
     print("ready to align keogram. press any key when ready to make keogram")
@@ -221,13 +230,70 @@ class KeogramGenerator():
     with open(os.path.join(self.path, "transform_metadata.json"),"w") as f:
       f.write(json_object)
 
+  def adjust_contrast_brightness_saturation(
+      self,
+      image: np.ndarray,
+      contrast: float = 1.0,   # contrast factor, 1 = no change
+      brightness: float = 0.0, # brightness offset, -255..255
+      saturation: float = 1.0  # saturation scale, 1 = original, 0 = mono
+  ) -> np.ndarray:
+    """
+    Fast combined contrast + brightness + saturation adjustment for BGR8 image.
+    
+    Contrast is centered at 128 (like your previous function).
+    Saturation is a linear scale from 0 (mono) to >1 (boosted).
+    Brightness is added after contrast.
+    
+    Parameters:
+        image: BGR uint8
+        contrast: float >0
+        brightness: float (-255..255)
+        saturation: float >=0
+    Returns:
+        Adjusted BGR uint8 image
+    """
+    # 1️⃣ Precompute contrast LUT
+    lut = np.clip((np.arange(256) - 128) * contrast + 128 + brightness, 0, 255).astype(np.uint8)
+
+    # Apply contrast + brightness
+    img_cb = cv2.LUT(image, lut)
+
+    # 2️⃣ Convert to HSV for saturation scaling
+    hsv = cv2.cvtColor(img_cb, cv2.COLOR_BGR2HSV)
+
+    # Saturation scaling (fast vectorized)
+    s = hsv[:, :, 1].astype(np.float32) * saturation
+    hsv[:, :, 1] = np.clip(s, 0, 255).astype(np.uint8)
+
+    # 3️⃣ Convert back to BGR
+    return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+  
+  def denoise(self, img, h=5, hColor=5, templateWindowSize=7, searchWindowSize=21):
+      img = cv2.fastNlMeansDenoisingColored(img, None,
+                                                  h=h,     # strength of luminance filtering
+                                                  hColor=hColor, # strength for color channels
+                                                  templateWindowSize=templateWindowSize,
+                                                  searchWindowSize=searchWindowSize)
+      return img
+      
+  def on_toggle_denoise(self, value): 
+    self.show_denoise = (value != 0)
+    self.color_dirty = True
+    self.draw()
 
   def draw(self):
     img = self.load_image()
+    # brightness contrast adjust:
+    if self.color_dirty:
+      self.color_dirty = False 
+      if self.show_denoise:
+        img = self.denoise(img) 
+      img = self.adjust_contrast_brightness_saturation(img, contrast=self.contrast, brightness=self.brightness, saturation=self.saturation)
     img_rotated = self.rotate_image(img)
     cv2.line(img_rotated, (img_rotated.shape[1]//2,0), (img_rotated.shape[1]//2,img_rotated.shape[0]), (255, 0, 128), 4)
 
-    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    font = cv2.FONT_HERSHEY_SIMPLEX 
     fontScale = 3
     fontColor = (255,255,255)
     thickness = 3
@@ -236,6 +302,10 @@ class KeogramGenerator():
     cv2.putText(img_rotated, f"DECLINATION: {self.declination}", (10, 100), font, fontScale, fontColor, thickness, lineType)
     cv2.putText(img_rotated, f"IMG ROTATION: {self.rotation}", (10, 200), font, fontScale, fontColor, thickness, lineType)
     cv2.putText(img_rotated, f"IMG INDEX: {self.index}", (10, 300), font, fontScale, fontColor, thickness, lineType)
+    cv2.putText(img_rotated, f"CONTRAST: {self.contrast}", (10, 400), font, fontScale, fontColor, thickness, lineType)
+    cv2.putText(img_rotated, f"BRIGHTNESS: {self.brightness}", (10, 500), font, fontScale, fontColor, thickness, lineType)
+    cv2.putText(img_rotated, f"SATURATION: {self.saturation}", (10, 600), font, fontScale, fontColor, thickness, lineType)
+    cv2.putText(img_rotated, f"DENOISE: {self.show_denoise}", (10, 700), font, fontScale, fontColor, thickness, lineType)
 
     cv2.imshow(self.window, img_rotated)
     # cv2.resizeWindow(window, 400, 400)
@@ -253,6 +323,41 @@ class KeogramGenerator():
 
   def on_change_declination(self, value):
     self.declination = value - 50 # slider only goes from 0
+    self.draw()
+
+  def on_change_contrast(self, value):
+    self.contrast = value/100 - 1 # slider only goes from 0
+    self.color_dirty = True
+    self.draw()
+
+  def on_change_brightness(self, value):
+    self.brightness = (255*(value/200 - 1)) # slider only goes from 0
+    self.color_dirty = True
+    self.draw()
+
+  def on_change_saturation(self, value):
+    self.saturation = value/100 - 1 # slider only goes from 0
+    self.color_dirty = True
+    self.draw()
+
+  def on_change_denoise_h_luminosity(self, value):
+    self.denoise_h_luminosity = value
+    self.color_dirty = True
+    self.draw()
+
+  def on_change_denoise_h_color(self, value):
+    self.denoise_h_color = value
+    self.color_dirty = True
+    self.draw()
+
+  def on_change_denoise_template_window_size(self, value):
+    self.denoise_template_window_size = value
+    self.color_dirty = True
+    self.draw()
+
+  def on_change_denoise_template_search_size(self, value):
+    self.denoise_on_change_denoise_template_search_size = value
+    self.color_dirty = True
     self.draw()
 
   def generate_keogram(self):

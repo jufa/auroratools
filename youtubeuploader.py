@@ -16,6 +16,7 @@ google_secret = Path("./secrets") / "client_secret_google.json"
 
 # Load saved credentials if they exist
 def get_youtube_client():
+  creds = None
   if token_file.exists():
       with token_file.open("rb") as f:
           creds = pickle.load(f)

@@ -9,11 +9,11 @@ from youtubeuploader import get_youtube_client, upload_video
 
 # pipeline steps:
 steps = {
-  "download": False,
-  "keogram": False,
-  "polarwarp": False,
+  "download": True,
+  "keogram": True,
+  "polarwarp": True,
   "composite": True,
-  "mp4": False,
+  "mp4": True,
   "upload": False
 }
 
@@ -36,6 +36,7 @@ def main():
     parser.add_argument("--path", required=True, help="Path to the sequence folder")
     parser.add_argument("--unit_text", required=True, help="Text string for unit annotation, can include newlines with \\n")
     parser.add_argument("--gamma", required=False, type=float, default=1.0, help="Gamma correction, defaults to 1 \\n")
+    parser.add_argument("--contrast", required=False, type=float, default=1.0, help="Contrast enhance, defaults to 1 \\n")
     args = parser.parse_args()
 
     # Ensure path is absolute and normalized
@@ -98,6 +99,7 @@ def main():
         "--path", local_path,
         "--output_size", "2160",
         "--gamma", str(args.gamma),
+        "--contrast", str(args.contrast),
         "--frame_count", str(frame_count),
         "--skip_frames", "1",
         "--unit_text", unit_text

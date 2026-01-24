@@ -38,7 +38,7 @@ class Compositor:
     """
     def __init__(self, root_path, output_size,
                  frame_number, asi_diameter, 
-                 keogram_diameter, unit_text, gamma):
+                 keogram_diameter, unit_text, gamma, contrast):
 
         self.root_path = Path(root_path)
         self.output_path = self.root_path / "composed_frames"
@@ -55,6 +55,7 @@ class Compositor:
         self.last_time_check = None
         self.mask_enabled = False
         self.gamma = gamma
+        self.contrast = contrast
         
         # Internal configuration
         self.margin = 30
@@ -70,6 +71,7 @@ class Compositor:
         self.target_row = None
         self.total_rows = 0
         self.gamma_lut = self.build_gamma_lut(gamma=self.gamma)
+        self.contrast_lut = self.build_contrast_lut(contrast=self.contrast)
         
         # Run setup to load data
         self._load_data()
@@ -77,6 +79,11 @@ class Compositor:
     def build_gamma_lut(self, gamma):
       inv = 1.0 / gamma
       lut = np.array([((i / 255.0) ** inv) * 255 for i in range(256)], dtype=np.uint8)
+      return lut
+    
+    def build_contrast_lut(self, contrast):
+      brightness = 0
+      lut = np.clip((np.arange(256) - 128) * contrast + 128 + brightness, 0, 255).astype(np.uint8)
       return lut
 
     def time_check(self, msg):
@@ -272,7 +279,7 @@ class Compositor:
       return img
 
     @timeit
-    def gamma_roi(self, img, cx, cy, half_w, half_h, gamma):
+    def color_correction_roi(self, img, cx, cy, half_w, half_h, gamma):
       """
       img: BGRA or BGR uint8 OpenCV image
       cx, cy: center of rectangle
@@ -292,6 +299,8 @@ class Compositor:
       roi = img[y1:y2, x1:x2, :3]  # BGR color only
 
       img[y1:y2, x1:x2, :3] = cv2.LUT(roi, self.gamma_lut)
+      img[y1:y2, x1:x2, :3] = cv2.LUT(roi, self.contrast_lut)
+
 
       return img
 
@@ -360,7 +369,7 @@ class Compositor:
 
 
         #adjust global gamma:
-        base_frame_cv2 = self.gamma_roi(img=base_frame_cv2, cx=(self.output_size//2), cy=(self.output_size//2), half_w=(self.output_size//2), half_h=(self.output_size//2), gamma=self.gamma)
+        base_frame_cv2 = self.color_correction_roi(img=base_frame_cv2, cx=(self.output_size//2), cy=(self.output_size//2), half_w=(self.output_size//2), half_h=(self.output_size//2), gamma=self.gamma)
 
         # add "now" marker
         base_frame_cv2 = self.color_dodge_roi(img=base_frame_cv2, cx=(self.output_size//2), cy=(self.output_size//20), half_w=10, half_h=(self.output_size//18), strength=0.5)
