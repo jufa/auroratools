@@ -12,6 +12,7 @@ def main():
   parser.add_argument("--keogram_diameter", type=float, default=0.98)
   parser.add_argument("--unit_text", required=True, help="Text to display on images")
   parser.add_argument("--gamma", type=float, default=1.0)
+  parser.add_argument("--contrast", type=float, default=1.0)
   parser.add_argument("--output_size", type=int, required=True)
   parser.add_argument("--workers", type=int, default=6, help="Number of parallel workers")
   parser.add_argument("--frame_count", type=int, required=True, help="Total number of frames")
@@ -26,6 +27,7 @@ def main():
       "unit_text": args.unit_text,
       "output_size": args.output_size,
       "gamma": args.gamma,
+      "contrast": args.contrast
   }
 
   # Split frames for workers
