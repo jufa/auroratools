@@ -399,6 +399,23 @@ if __name__=="__main__":
     ├─ 16-bit PNG/TIFF for archival
     └─ 8-bit PNG/Video export (optional dithering)
 
+    
+    PERFORMANCE (Mac M1)
+      35 ms     extract_tif_bayer_data
+      20 ms     linearize
+       8 ms     apply_white_balance_cfa
+    2020 ms     demosaic
+      97 ms     apply_color_matrix
+      69 ms     apply_exposure
+      84 ms     adjust_saturation
+      32 ms     apply_highlight_rolloff
+      42 ms     apply_contrast
+      33 ms     subtract_black_floor
+    1804 ms     denoise
+     146 ms     apply_gamma
+     309 ms     downsample_to_8bit
+     109 ms     imwrite
+    4809 ms     TOTAL
   """
 
   parser = argparse.ArgumentParser(
