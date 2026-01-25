@@ -380,8 +380,51 @@ if __name__=="__main__":
   """
   example use:
   python cfa_processor.py --src ./sampleimages/00000007-20260125.tif --dst ./sampleimages/00000007-20260125.png
+
+  CFAProcessor Pipeline Overview (Aurora / Timelapse Friendly)
+
+  Bayer Raw Input (12-bit Sony ARW)
+          │
+          ▼
+  [Linearization / EXIF Black Subtraction]  <-- subtract sensor black level
+          │
+          ▼
+  [White Balance]  <-- per-channel WB from EXIF or fixed
+          │
+          ▼
+  [Demosaic]  <-- color interpolation (Menon2007)
+          │
+          ▼
+  [Color Matrix]  <-- camera-specific 3x3 transform
+          │
+          ▼
+  [Exposure Adjustment]  <-- linear scale to brighten/darken
+          │
+          ▼
+  [Hue-Preserving Saturation]  <-- boosts color without hue drift
+          │
+          ▼
+  [Highlight Rolloff LUT]  <-- compress bright highlights smoothly
+          │
+          ▼
+  [Contrast LUT]  <-- contrast enhancement (-/+ adjustable)
+          │
+          ▼
+  [Black Floor Subtraction]  <-- fixed, frame-independent for timelapse
+          │
+          ▼
+  [Noise Reduction]  <-- OpenCV fastNlMeansDenoisingColored, linear space
+          │
+          ▼
+  [Gamma Correction]  <-- optional, display gamma (1.0=linear, 1.4-1.6=astro video)
+          │
+          ▼
+  [Output]
+    ├─ 16-bit PNG/TIFF for archival
+    └─ 8-bit PNG/Video export (optional dithering)
+
   """
-  
+
   parser = argparse.ArgumentParser(
     description="Process CFA Bayer data from ZV-E10 mk I"
   )
