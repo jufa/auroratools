@@ -425,7 +425,7 @@ if __name__=="__main__":
   parser.add_argument('--dst', required=True, help='Path and name of the output png16 image')
   args = parser.parse_args()
 
-  ap = CFAProcessor(bpp=8, denoise=True, saturation=2.8, contrast=0.0, gamma=1.6, exposure=0.5, black_floor=0.005)
+  ap = CFAProcessor(bpp=8, denoise=False, saturation=2.0, contrast=0.0, gamma=1.6, exposure=0.5, black_floor=0.005)
   ap.process_tif(Path(args.src), Path(args.dst))
 
 
