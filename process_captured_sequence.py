@@ -9,12 +9,12 @@ from youtubeuploader import get_youtube_client, upload_video
 
 # pipeline steps:
 steps = {
-  "download": True,
-  "keogram": True,
-  "polarwarp": True,
-  "composite": True,
-  "mp4": True,
-  "upload": False
+  "download": 0,
+  "keogram": 0,
+  "polarwarp": 0,
+  "composite": 1,
+  "mp4": 1,
+  "upload": 1
 }
 
 
@@ -54,6 +54,7 @@ def main():
       "-m", 
       "cp",
       "-r",
+      "-n", # skip if exists locally
       f"gs://{google_bucket_name}/{seq_name}",
       str(local_root)
     ]
