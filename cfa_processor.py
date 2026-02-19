@@ -61,12 +61,10 @@ class CFAProcessor:
         self.contrast = contrast
         self.saturation = saturation
         self.black_floor = black_floor
-        self.bpp = bpp
-        self.denoise = denoise
-
-        # highlight rolloff
         self.rolloff_threshold = rolloff_threshold
         self.rolloff_slope = rolloff_slope
+        self.bpp = bpp
+        self.denoise = denoise
 
         # build 1D LUT for 16-bit linear input (0..65535)
         x = np.linspace(0, 1, 65536, dtype=np.float32)
@@ -109,7 +107,8 @@ class CFAProcessor:
 
       x = np.linspace(0, 1, 65536, dtype=np.float32)
       x_new = x * gain
-      x_new = np.clip(x_new, 0.0, 1.0)
+      # DON'T clip here - let rolloff handle it!
+      # x_new = np.clip(x_new, 0.0, 1.0)  # REMOVE THIS LINE
 
       return x_new
 
@@ -123,7 +122,8 @@ class CFAProcessor:
       
       # S-curve style contrast
       x_new = 0.5 + (x - 0.5) * (1.0 + contrast)
-      x_new = np.clip(x_new, 0.0, 1.0)
+      # REMOVE CLIP - let it expand beyond [0,1]
+      # x_new = np.clip(x_new, 0.0, 1.0)
       
       return x_new
 
@@ -147,8 +147,19 @@ class CFAProcessor:
       """
       Apply exposure LUT (linear space).
       """
-      idx = np.clip((rgb * 65535).astype(np.int32), 0, 65535)
-      return self.exposure_lut[idx]
+      # Scale to LUT index space
+      idx = (rgb * 65535).astype(np.int32)
+      
+      # Clamp indices to LUT bounds
+      idx = np.clip(idx, 0, 65535)
+      
+      result = self.exposure_lut[idx]
+      
+      # Handle any values that went beyond LUT range
+      over = rgb > 1.0
+      result[over] = rgb[over] * (2.0 ** self.exposure)
+      
+      return result
 
 
     def apply_white_balance_cfa(self, bayer: np.ndarray) -> np.ndarray:
@@ -183,28 +194,48 @@ class CFAProcessor:
     
     def apply_highlight_rolloff(self, rgb: np.ndarray, threshold=0.8, slope=0.1) -> np.ndarray:
       """
-      Compress highlights smoothly.
-      rgb : linear float32 array [0,1]
-      threshold: linear value where rolloff starts
-      slope: how aggressive the rolloff is
+      Classic Reinhard tone mapping with adjustable white point.
+      Standard method, fully continuous.
+      
+      rgb : linear float32 array, can be >1.0
+      threshold: not used in classic Reinhard (kept for API compatibility)
+      slope: controls white point (lower = more highlight compression)
       """
-      out = rgb.copy()
-      mask = out > threshold
-      # exponential rolloff
-      out[mask] = threshold + (1 - np.exp(-(out[mask] - threshold)/slope)) * (1 - threshold)
-      # ensure still in 0..1
-      out = np.clip(out, 0.0, 1.0)
-      return out
+      # Calculate luminance (BT.709)
+      Y = 0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]
+      
+      # Classic Reinhard with adjustable white point
+      white_point = 1.0 / (slope + 0.01)  # Avoid division by zero
+      
+      # L_out = L * (1 + L/white²) / (1 + L)
+      Y_compressed = Y * (1.0 + Y / (white_point * white_point)) / (1.0 + Y)
+      
+      # Scale RGB proportionally to preserve hue
+      scale = np.ones_like(Y)
+      mask = Y > 1e-10
+      scale[mask] = Y_compressed[mask] / Y[mask]
+      
+      out = rgb * scale[..., np.newaxis]
+      
+      return np.clip(out, 0.0, 1.0)
     
     def apply_contrast(self, rgb: np.ndarray) -> np.ndarray:
       """
       Apply LUT-based contrast enhancement
       """
       idx = np.clip((rgb * 65535).astype(np.int32), 0, 65535)
-      return self.contrast_lut[idx]
+      result = self.contrast_lut[idx]
+      
+      # Handle values >1.0 that exceed LUT
+      over = rgb > 1.0
+      if np.any(over):
+        result[over] = 0.5 + (rgb[over] - 0.5) * (1.0 + self.contrast)
+      
+      return result
     
     def subtract_black_floor(self, rgb: np.ndarray) -> np.ndarray:
-      return np.clip(rgb - self.black_floor, 0.0, 1.0)
+      # Only clip negatives, allow >1.0
+      return np.clip(rgb - self.black_floor, 0.0, None)
     
     def downsample_to_8bit(self, rgb: np.ndarray, dithering=True) -> np.ndarray:
       """
@@ -247,7 +278,8 @@ class CFAProcessor:
       Gn = (Y - 0.2126 * Rn - 0.0722 * Bn) / 0.7152
 
       out = np.stack((Rn, Gn, Bn), axis=-1)
-      return np.clip(out, 0.0, 1.0)
+      # REMOVE CLIPPING - let values flow through!
+      return out  # Can be >1.0 or <0.0
     
     def apply_denoise(self, rgb: np.ndarray,
             h: float = 1,
@@ -329,6 +361,10 @@ class CFAProcessor:
       self.perf_counter_pretty(s, "apply_color_matrix")
 
       s = perf_counter()
+      rgb = self.apply_highlight_rolloff(rgb, threshold=self.rolloff_threshold, slope=self.rolloff_slope)
+      self.perf_counter_pretty(s, "apply_highlight_rolloff")
+
+      s = perf_counter()
       rgb = self.apply_exposure(rgb)
       self.perf_counter_pretty(s, "apply_exposure")
       
@@ -336,10 +372,6 @@ class CFAProcessor:
       rgb = self.adjust_saturation_hue_preserving(rgb)
       self.perf_counter_pretty(s, "adjust_saturation")
       
-      s = perf_counter()
-      rgb = self.apply_highlight_rolloff(rgb, threshold=0.8, slope=0.05)
-      self.perf_counter_pretty(s, "apply_highlight_rolloff")
-
       s = perf_counter()
       rgb = self.apply_contrast(rgb)
       self.perf_counter_pretty(s, "apply_contrast")
@@ -425,8 +457,19 @@ if __name__=="__main__":
   parser.add_argument('--dst', required=True, help='Path and name of the output png16 image')
   args = parser.parse_args()
 
-  ap = CFAProcessor(bpp=8, denoise=False, saturation=2.0, contrast=0.0, gamma=1.6, exposure=0.5, black_floor=0.005)
-  ap.process_tif(Path(args.src), Path(args.dst))
+  ap = CFAProcessor(
+    bpp=16,
+    denoise=False,
+    saturation=1.2,
+    contrast=0.0,
+    gamma=1.6,
+    exposure=0.0,
+    black_floor=0.005,
+    rolloff_threshold=0.8, # lower is applying rolloff to sooner (less bright areas)
+    rolloff_slope=0.3 # higher is more aggressive highlight protection
+  )
+  ap.process_tif(Path(args.src),
+  Path(args.dst))
 
 
 
