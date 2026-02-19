@@ -4,6 +4,7 @@ import astropy.units as u
 import numpy as np
 
 """
+STATUS: FUNCTIONAL AND USEFUL, BUT APPROXIMATE. SEE NOTES BELOW.
 Approximation of MLM That this module is more accurately modelling:
 
 Example:
@@ -15,7 +16,7 @@ so local midnight + 1.07 hours = 01:04  is the approximate local MLM time
 now add UTC offset (7 hours East of 00:00UTC) to get UTC time of MLM: 01:04 + 7 hours = 08:04 UTC
 Module says 08:37 UTC using a more accurate library
 
-tromso on 2026-02-17
+Tromso on 2026-02-17
 declination is 15 deg east (+15deg)
 0.0444 * 24 = 1.07 hours until MLM at local geographic midnight
 now add UTC offset (+1 hours, or 1 hour west of UTC so opposite sign from declination)
