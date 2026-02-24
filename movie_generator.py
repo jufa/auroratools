@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import cv2
 
-def generate_mp4(path: Path, framerate_in: int, framerate_out: int, min_duration=60):
+def generate_mp4(path: Path, framerate_in: int, framerate_out: int, min_duration=65, padding_image: Path = None):
     composed_dir = path / "composed_frames"
     if not composed_dir.exists():
         raise FileNotFoundError(f"{composed_dir} does not exist")
@@ -16,11 +16,20 @@ def generate_mp4(path: Path, framerate_in: int, framerate_out: int, min_duration
         if not png_files:
             raise FileNotFoundError(f"No PNG files in {composed_dir}")
         first_frame = png_files[0]
+    else:
+        png_files = sorted(composed_dir.glob("*.png"))
 
     img = cv2.imread(str(first_frame))
     if img is None:
         raise RuntimeError(f"Failed to read {first_frame}")
     height, width = img.shape[:2]
+
+    # Calculate existing duration and padding needed
+    existing_frames = len(png_files)
+    existing_duration = existing_frames / framerate_out  # duration in seconds at output framerate
+    padding_duration = max(2, min_duration - existing_duration) # seconds
+
+    print(f"Padding duration: {padding_duration:.2f} seconds (existing: {existing_duration:.2f} seconds)")
 
     # Generate output filename
     output_file = f"{path.name}_{height}px_{framerate_in}infps_{framerate_out}outfps.mp4"
@@ -37,7 +46,16 @@ def generate_mp4(path: Path, framerate_in: int, framerate_out: int, min_duration
       blend_filter = f"{pad_filter},tblend=all_mode=average"
     else:
       blend_filter = f"{pad_filter}"
-    time_pad_filter = f"{blend_filter},tpad=stop_mode=clone:stop_duration={min_duration}"
+    
+    # Build padding filter
+    if padding_image and padding_image.exists():
+        # Calculate number of frames needed for padding
+        pad_frames = int(padding_duration * framerate_out)
+        # Use custom padding image - scale to fit within target dimensions while maintaining aspect ratio, then pad to exact size
+        time_pad_filter = f"{blend_filter}[v];movie=filename='{padding_image}':loop={pad_frames},setpts=N/(TB*{framerate_out}),scale={pad_width}:{height}:force_original_aspect_ratio=decrease,pad={pad_width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p[pad];[v][pad]concat=n=2:v=1:a=0"
+    else:
+        # Fallback to cloning last frame
+        time_pad_filter = f"{blend_filter},tpad=stop_mode=clone:stop_duration={padding_duration}"
 
     use_hw = True  # True = VideoToolbox, False = libx264
     if use_hw:
@@ -69,9 +87,11 @@ def main():
     parser.add_argument("--path", type=str, required=True, help="Path to folder containing 'composed_frames'")
     parser.add_argument("--framerate_in", type=int, default=24, help="Output framerate (default: 20)")
     parser.add_argument("--framerate_out", type=int, default=24, help="Output framerate (default: 60)")
+    parser.add_argument("--padding_image", type=str, help="Path to image to use for padding (optional)")
     args = parser.parse_args()
 
-    generate_mp4(Path(args.path), args.framerate_in, args.framerate_out)
+    padding_path = Path(args.padding_image) if args.padding_image else None
+    generate_mp4(Path(args.path), args.framerate_in, args.framerate_out, padding_image=padding_path)
 
 if __name__ == "__main__":
     main()

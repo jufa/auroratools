@@ -9,12 +9,12 @@ from youtubeuploader import get_youtube_client, upload_video
 
 # pipeline steps:
 steps = {
-  "download": 0,
-  "keogram": 0,
-  "polarwarp": 0,
-  "composite": 1,
-  "mp4": 1,
-  "upload": 1
+  "download":   0,
+  "keogram":    0,
+  "polarwarp":  0,
+  "composite":  0,
+  "mp4":        1,
+  "upload":     1
 }
 
 
@@ -114,7 +114,8 @@ def main():
         "python", "movie_generator.py",
         "--path", local_path,
         "--framerate_in", "24",
-        "--framerate_out", "24"
+        "--framerate_out", "24",
+        "--padding_image", "movie_end_padding.png"
     ]
     print("Running movie_generator.py...")
     if steps["mp4"]:
