@@ -96,6 +96,9 @@ class KeogramGenerator():
     files = self.get_image_file_list(path)
     total_files = len(files)
     file_sample_count = rows * columns
+    if total_files < file_sample_count + 2:
+      print(f"ERROR: not enough files to create contact sheet with {rows} rows and {columns} columns. total_files:{total_files}, required:{file_sample_count + 2}")
+      return
     offset_start = 1 # make sure we don't get setup frames from start or end of sequence
     offset_end = 1
     total_files = total_files - offset_start - offset_end

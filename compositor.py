@@ -154,7 +154,7 @@ class Compositor:
             self.total_rows = len(self.metadata_df)
             
             # Row number is 1-based, index is 0-based
-            if 0 < self.frame_number <= self.total_rows:
+            if 0 <= self.frame_number <= self.total_rows:
                 self.target_row = self.metadata_df.iloc[self.frame_number]
             else:
                 raise IndexError(f"Row number {self.frame_number} is out of bounds (1 to {self.total_rows}).")
