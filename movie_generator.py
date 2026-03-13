@@ -85,8 +85,8 @@ def generate_mp4(path: Path, framerate_in: int, framerate_out: int, min_duration
 def main():
     parser = argparse.ArgumentParser(description="Convert PNG sequence to MP4")
     parser.add_argument("--path", type=str, required=True, help="Path to folder containing 'composed_frames'")
-    parser.add_argument("--framerate_in", type=int, default=24, help="Output framerate (default: 20)")
-    parser.add_argument("--framerate_out", type=int, default=24, help="Output framerate (default: 60)")
+    parser.add_argument("--framerate_in", type=int, default=24, help="Output framerate (default: 24)")
+    parser.add_argument("--framerate_out", type=int, default=24, help="Output framerate (default: 24)")
     parser.add_argument("--padding_image", type=str, help="Path to image to use for padding (optional)")
     args = parser.parse_args()
 
