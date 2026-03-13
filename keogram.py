@@ -28,7 +28,7 @@ class KeogramGenerator():
       return self.image_file_list
     input_path = path
     try:
-      files = fnmatch.filter(os.listdir(input_path), '*.jpg')
+      files = [f for f in os.listdir(input_path) if f.lower().endswith('.jpg')]
     except:
       print(f"ERROR: could not open folder for resizing operation: {input_path}")
       print(f"exception details: {sys.exc_info()[0]}: {sys.exc_info()[1]}")
