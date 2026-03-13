@@ -10,9 +10,9 @@ from youtubeuploader import get_youtube_client, upload_video
 # pipeline steps:
 steps = {
   "download":   0,
-  "keogram":    0,
-  "polarwarp":  0,
-  "composite":  0,
+  "keogram":    1,
+  "polarwarp":  1,
+  "composite":  1,
   "mp4":        1,
   "upload":     1
 }
@@ -69,7 +69,7 @@ def main():
         "--transform-metadata",
         "--metadata-ZVE10",
         "--keogram",
-        "--contactsheet",
+        # "--contactsheet",
         "--path", local_path
     ]
 
@@ -77,7 +77,14 @@ def main():
     if steps["keogram"]:
       subprocess.run(cmd_keogram, check=True)
 
-    frame_count = get_frame_count(str(Path(local_path) / "metadata.csv"))
+    try:
+      frame_count = get_frame_count(str(Path(local_path) / "metadata.csv"))
+    except Exception as e:
+      print(f"Error reading metadata.csv: {e}")
+      # count jpg files in the directory instead as fallback
+      jpg_files = list(Path(local_path).glob("*.jpg"))
+      frame_count = len(jpg_files)
+
     print(f"Frames: {frame_count}")
 
     # Step 2: polarwarp.py
