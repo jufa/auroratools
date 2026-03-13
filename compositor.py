@@ -13,6 +13,7 @@ usage:
 python compositor.py --path "/Volumes/T7 Shield/AurorEye/seq_2025-12-06T07-28-12/" --output-size 2160 --gamma 0.5 --frame-count 100 --unit-text "UNIT 12\nFAIRBANKS, AK"
 """
 perf_mon=False
+mirror = False
 
 
 def timeit(func):
@@ -182,11 +183,22 @@ class Compositor:
         if img_bgr is None:
             raise FileNotFoundError(f"OpenCV could not load image at {input_img_path}")
             
+        # crop to square
+        h, w = img_bgr.shape[:2]
+        if w > h:
+          margin = (w - h) // 2
+          img_bgr = img_bgr[:, margin:margin+h]
+        elif h > w:
+          margin = (h - w) // 2
+          img_bgr = img_bgr[margin:margin+w, :]
+
+
         # rescale to output size (usually smaller so in anything improves perf)
         scale_px = int(self.output_size * self.asi_diameter)
         scale_px += scale_px % 2
         img_bgr_rescaled = self._rotate_and_scale(img_bgr, scale_px, total_rotation_angle) # fraction of full output image size
-        img_bgr_rescaled = self._flip_horizontal(img_bgr_rescaled)
+        if mirror:
+          img_bgr_rescaled = self._flip_horizontal(img_bgr_rescaled)
 
         border_size =  (self.output_size - scale_px) // 2 # Thickness of the border in pixels
         border_color = [0, 0, 0]  # BGR color for the border (e.g., [0, 0, 255] for red)
@@ -492,14 +504,15 @@ class Compositor:
         pad = -0.01 * self.asi_diameter * self.output_size
         x = self.output_size * (1 - self.asi_diameter) // 2
         y = self.output_size // 2
-        text="W"
+        text = "W" if mirror else "E"
+
         text_width = draw.textlength(text, font=font_cardinal)
         x_centered = x - text_width // 2 + pad
         y_centered = y - text_width // 2  # optional: to also center vertically
         draw.text((x_centered, y_centered), text, font=font_cardinal, fill=cardinal_color)
 
         x = self.output_size - x
-        text="E"
+        text = "E" if mirror else "W"
         x_centered = x - text_width // 2 - pad
         draw.text((x_centered, y_centered), text, font=font_cardinal, fill=cardinal_color)
         
