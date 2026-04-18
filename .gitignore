@@ -12,6 +12,7 @@ bin
 
 # Distribution / packaging
 .Python
+~/projects/tmp/
 build/
 develop-eggs/
 dist/
