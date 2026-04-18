@@ -10,7 +10,7 @@ import subprocess
 from datetime import datetime, timedelta
 
 BUCKET = "gs://auroreye-storage-558"
-MOVE_AFTER_DAYS = 400
+MOVE_AFTER_DAYS = 30
 STORAGE_CLASS = "NEARLINE"
 
 # list folders
@@ -19,6 +19,8 @@ folders = subprocess.check_output(
 ).decode().splitlines()
 
 now = datetime.utcnow()
+
+folders.reverse()
 
 for folder in folders:
     # folder format: gs://your-bucket/seq_YYYY-MM-DDTHH-MM-SS/
