@@ -28,11 +28,13 @@ from pathlib import Path
 # Configuration
 # ---------------------------------------------------------------------------
 
-DEFAULT_ROOT = "/Volumes/T7 Shield/AurorEye"
+DEFAULT_ROOT = "/Volumes/OCTOGIGGER/AurorEye" #"/Volumes/T7 Shield/AurorEye"
 SUMMARY_FILENAME = "sequence_summary.csv"
 
 SUMMARY_COLUMNS = [
     "folder",
+    "path",
+    "file_count",
     "image_count",
     "start_time",
     "end_time",
@@ -100,8 +102,12 @@ def extract_folder_data(folder_path: Path) -> dict:
     """
     empty = {col: "" for col in SUMMARY_COLUMNS}
     empty["folder"] = folder_path.name
+    empty["path"] = str(folder_path.resolve())
+    empty["file_count"] = str(sum(1 for _ in folder_path.rglob("*") if _.is_file()))
 
     meta_path = folder_path / "metadata.csv"
+    if not meta_path.exists():
+        meta_path = folder_path / "archive" / "metadata.csv"
     if not meta_path.exists():
         return empty
 
@@ -189,6 +195,8 @@ def extract_folder_data(folder_path: Path) -> dict:
 
     return {
         "folder":                   folder_path.name,
+        "path":                     str(folder_path.resolve()),
+        "file_count":               str(sum(1 for _ in folder_path.rglob("*") if _.is_file())),
         "image_count":              str(len(rows)),
         "start_time":               make_datetime(first),
         "end_time":                 make_datetime(last),
