@@ -81,12 +81,13 @@ def  build_metadata_object_for_file(exif_object, filepath):
       md['longitude_ref'] = exif_object.get("gps_longitude_ref")
       return md
     except Exception as e:
-      print("ERROR building exif metadata dict\nDETAILS:\n")
+      print(f"ERROR building exif metadata dict for {filepath}. \nDETAILS:\n----------------------")
       print(e)
       print(sys.exc_info()[0])
       print(sys.exc_info()[1])
       print(sys.exc_info()[2])
       print(traceback.format_exc())
+      print("----------------------\n")
 
 """
   GPS coordinates are stored in degrees, minutes, seconds format
