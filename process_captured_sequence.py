@@ -5,9 +5,19 @@ import argparse
 import shlex
 import csv
 from pathlib import Path
+from WBFix import ColorCorrector
 from youtubeuploader import get_youtube_client, upload_video
 
 # pipeline steps:
+"""
+TOWN          REGION  UNIT        LATITUDE          LONGITUDE             DECLINATION
+MIDDLEMARCH   NZ      17          -45.515739	       170.1136955          +24
+OTAGO (PISA)  NZ      16          -44.9737516	       169.2412883          +24          
+FAIRBANKS     AK      12           64.8209725       -147.542903           +16
+PLUMAS        MB      15           50.4216856667	   -99.088932           +5
+
+
+"""
 steps = {
   "download":   0,
   "keogram":    1,
@@ -17,6 +27,15 @@ steps = {
   "upload":     1
 }
 
+# steps = {
+#   "download":   1,
+#   "keogram":    0,
+#   "polarwarp":  0,
+#   "composite":  0,
+#   "mp4":        0,
+#   "upload":     0
+# }
+
 
 def get_frame_count(metadata_path):
     metadata_path = Path(metadata_path)
@@ -24,6 +43,14 @@ def get_frame_count(metadata_path):
         reader = csv.reader(f)
         frame_count = sum(1 for _ in reader) - 1  # subtract 1 if there's a header row
     return frame_count
+
+def remove_zero_byte_files(directory: Path):
+    """Remove any 0-byte files from the given directory (recursively)."""
+    for f in directory.rglob("*"):
+        if f.is_file() and f.stat().st_size == 0:
+            print(f"Removing 0-byte file: {f}")
+            f.unlink()
+
 
 def latest_mp4(path: Path) -> Path | None:
     mp4_files = list(path.glob("*.mp4"))
@@ -62,6 +89,9 @@ def main():
     print(cmd_download)
     if steps["download"]:
       subprocess.run(cmd_download, check=True)
+
+    # Remove any 0-byte files that may have been downloaded from the cloud
+    remove_zero_byte_files(Path(local_path))
 
     # Step 1: keogram.py
     cmd_keogram = [
