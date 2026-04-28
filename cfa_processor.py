@@ -282,10 +282,10 @@ class CFAProcessor:
       return out  # Can be >1.0 or <0.0
     
     def apply_denoise(self, rgb: np.ndarray,
-            h: float = 1,
+            h: float = 2,
             hColor: float = 2,
-            templateWindowSize: int = 7,
-            searchWindowSize: int = 21,
+            templateWindowSize: int = 7-2,
+            searchWindowSize: int = 21-7,
             bit_depth: int = 8) -> np.ndarray:
       """
       Apply OpenCV fastNlMeansDenoisingColored to linear RGB image.
@@ -351,6 +351,10 @@ class CFAProcessor:
       s = perf_counter()
       bayer = self.apply_white_balance_cfa(bayer)
       self.perf_counter_pretty(s, "apply_white_balance_cfa")
+
+      s = perf_counter()
+      bayer = self.subtract_black_floor(bayer) 
+      self.perf_counter_pretty(s, "subtract_black_floor")
       
       s = perf_counter()
       rgb = self.demosaic(bayer)
@@ -375,10 +379,6 @@ class CFAProcessor:
       s = perf_counter()
       rgb = self.apply_contrast(rgb)
       self.perf_counter_pretty(s, "apply_contrast")
-
-      s = perf_counter()
-      rgb = self.subtract_black_floor(rgb) 
-      self.perf_counter_pretty(s, "subtract_black_floor")
       
       if self.denoise:
         if self.bpp != 8:
@@ -458,13 +458,13 @@ if __name__=="__main__":
   args = parser.parse_args()
 
   ap = CFAProcessor(
-    bpp=16,
+    bpp=8,
     denoise=False,
-    saturation=1.2,
+    saturation=0.8,
     contrast=0.0,
     gamma=1.6,
-    exposure=0.0,
-    black_floor=0.005,
+    exposure=1,
+    black_floor=0.0,
     rolloff_threshold=0.8, # lower is applying rolloff to sooner (less bright areas)
     rolloff_slope=0.3 # higher is more aggressive highlight protection
   )
