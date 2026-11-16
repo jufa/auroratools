@@ -1,0 +1,1514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lens calibration — align by hand</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-edge: #232b36;
+    --ink: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --star: #ffd479;
+    --ok: #5ae68a;
+    --warn: #f0a35e;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--panel-edge);
+    background: var(--panel);
+  }
+  header .title { font-weight: 600; letter-spacing: .02em; }
+  header .muted { color: var(--muted); }
+  header .status { margin-left: auto; color: var(--accent); font-variant-numeric: tabular-nums; }
+  header .status.busy::after { content: " …"; }
+  #layout { flex: 1; display: grid; grid-template-columns: 360px 1fr; min-height: 0; }
+  #panel {
+    position: relative;
+    z-index: 2;
+    border-right: 1px solid var(--panel-edge);
+    background: var(--panel);
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .card {
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #10151c;
+  }
+  .card h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .row label { flex: 0 0 96px; color: var(--muted); }
+  .row input[type="range"] { flex: 1; min-width: 90px; accent-color: var(--accent); }
+  .row input[type="number"], .row input[type="datetime-local"], .row select {
+    flex: 1;
+    min-width: 0;
+    background: #0b1017;
+    color: var(--ink);
+    border: 1px solid var(--panel-edge);
+    border-radius: 5px;
+    padding: 4px 6px;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .row input.num { flex: 0 0 84px; }
+  .row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+  .row .unit { color: var(--muted); font-size: 11px; }
+  .hint { color: var(--muted); font-size: 11.5px; margin: 4px 0 8px; }
+  .hint.inline { margin: 0; }
+  button {
+    font: inherit;
+    border-radius: 6px;
+    border: 1px solid var(--panel-edge);
+    background: #1c2430;
+    color: var(--ink);
+    padding: 7px 10px;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: #3d4a5c; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary {
+    width: 100%;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #06131f;
+    font-weight: 600;
+    padding: 10px;
+  }
+  button.ghost { background: transparent; }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  #stageWrap {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 50%, #11161d 0%, #070a0e 70%);
+  }
+  #stage {
+    position: relative;
+    touch-action: none;
+    user-select: none;
+    cursor: grab;
+    box-shadow: 0 0 0 1px #1d2530, 0 12px 40px rgba(0,0,0,.6);
+  }
+  /* Live alignment: the pointer picks a circle, then the star in the photo. */
+  #stage.live { cursor: crosshair; }
+  #stage.dragging { cursor: grabbing; }
+  /* Nothing loaded yet: the stage turns into the invitation for a frame. */
+  #stage.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 420px;
+    height: 260px;
+    border: 1px dashed #2c3644;
+    border-radius: 10px;
+    background: rgba(88, 166, 255, .03);
+    box-shadow: none;
+    cursor: pointer;
+  }
+  #stage.empty.drop { border-color: var(--accent); background: rgba(88, 166, 255, .09); }
+  #stage:not(.empty).drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
+  #stageHint { display: none; padding: 0 20px; color: var(--muted); font-size: 12.5px; line-height: 1.7; text-align: center; }
+  #stage.empty #stageHint { display: block; }
+  #stageHint strong { color: var(--ink); font-weight: 600; }
+  header button { padding: 4px 9px; font-size: 12px; }
+  #frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: 50% 50%;
+    will-change: transform;
+    -webkit-user-drag: none;
+  }
+  #overlay { position: absolute; inset: 0; pointer-events: none; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+  .notes { margin: 8px 0 0; padding-left: 16px; color: var(--warn); font-size: 11.5px; }
+  .warn { color: var(--warn); font-size: 11.5px; }
+  .sep { height: 1px; background: var(--panel-edge); margin: 10px 0; }
+  /* The ✕ beside a pin: the readout's rows are the only place a pin can be
+     taken out without hunting for its circle again. */
+  .pair button.pin-remove {
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0 0 0 8px;
+    font: inherit;
+    line-height: 1;
+  }
+  .pair button.pin-remove:hover { color: var(--warn); }
+  .pair { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; font-size: 11.5px; }
+  .pair span:first-child { color: var(--muted); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 11.5px; }
+  code { font-size: 11px; color: var(--muted); word-break: break-all; }
+</style>
+</head>
+<body>
+<header>
+  <span class="title">Lens calibration</span>
+  <button id="openImage" class="ghost" title="Load a fisheye frame (or drop one on the stage)">Open image…</button>
+  <input type="file" id="openFile" accept="image/*" hidden>
+  <span class="muted" id="frameName">no frame</span>
+  <span class="muted" id="frameSize"></span>
+  <span class="status" id="status"></span>
+</header>
+
+<div id="layout">
+  <aside id="panel">
+    <section class="card">
+      <h2>1 · Align by hand</h2>
+      <p class="hint">
+        The overlay is an <strong>ideal equiangular fisheye</strong> (180° across the disc) for
+        this time and place, north up. Rotate, mirror and drag the <em>photo</em> until the real
+        stars sit on the circles: bigger circles are brighter stars, the faint guide rings mark 30°, 60°
+        and 90° from the zenith, the dashed circle is the disc rim and the cross its centre (the
+        zenith). Drag to shift · arrow keys nudge 1 px, shift+arrow 10 px.
+      </p>
+      <div class="row">
+        <label for="roll">Rotation</label>
+        <input type="range" id="roll" min="-180" max="180" step="0.1" value="0">
+        <input type="number" id="rollNum" step="0.1" value="0" class="num">
+        <span class="unit">°</span>
+      </div>
+      <div class="row">
+        <label for="mirror">Mirrored</label>
+        <input type="checkbox" id="mirror">
+        <span class="hint inline">flip left / right</span>
+      </div>
+      <div class="row">
+        <label>Shift</label>
+        <output id="shiftOut" class="hint inline">0.0, 0.0 px</output>
+        <button id="reset" class="ghost" style="margin-left:auto">reset</button>
+      </div>
+      <div class="row">
+        <label>Live align</label>
+        <button id="live" class="ghost">pin stars…</button>
+        <button id="liveUndo" class="ghost" hidden>undo</button>
+      </div>
+      <p class="hint" id="liveNote">
+        Pin a star instead of dragging: click its circle, then the same star in the photo.
+        Every pin is fitted at once, so the lines show the error each pair still carries.
+        Four stars also calibrate the lens — the circles then move onto the real stars, and a
+        fifth settles the theta^5 term. The fit stops there: further stars tighten it instead
+        of buying more distortion terms. Click a pinned circle again — or the ✕ beside it in
+        the readout — to take that pin out.
+      </p>
+      <div class="row">
+        <label for="showGrid">Grid</label>
+        <input type="checkbox" id="showGrid" checked>
+        <span class="hint inline">30°/60° rings, N/E/S/W</span>
+      </div>
+      <div class="row">
+        <label for="showAids">Sky aids</label>
+        <input type="checkbox" id="showAids" checked>
+        <span class="hint inline">clusters, nebulae, Milky Way — never pinned</span>
+      </div>
+      <div class="row">
+        <label for="showDets">Detections</label>
+        <input type="checkbox" id="showDets" checked>
+        <span class="hint inline" id="detCount"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2 · Overlay model</h2>
+      <div class="row">
+        <label for="projection">Projection</label>
+        <select id="projection"></select>
+      </div>
+      <div class="row">
+        <label for="fov">Field of view</label>
+        <input type="number" id="fov" value="180" min="120" max="230" step="1" class="num">
+        <span class="unit">° across the disc</span>
+      </div>
+      <div class="row">
+        <label for="magLimit">Star limit</label>
+        <input type="number" id="magLimit" value="4.5" min="1" max="6.5" step="0.1" class="num">
+        <span class="unit">mag</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3 · Time and place</h2>
+      <div class="row"><label for="utc">UTC</label><input type="datetime-local" id="utc" step="1"></div>
+      <div class="row"><label for="lat">Latitude</label><input type="number" id="lat" step="0.0001" class="num"></div>
+      <div class="row"><label for="lon">Longitude</label><input type="number" id="lon" step="0.0001" class="num"></div>
+      <div class="row">
+        <button id="applySite" class="ghost">apply time / place</button>
+        <span class="hint inline" id="timeNote"></span>
+      </div>
+    </section>
+
+    <section class="card stack">
+      <button id="align" class="primary">Align — let the solver take over</button>
+      <button id="save" class="ghost" disabled>Save calibration JSON</button>
+      <span class="hint" id="saveNote"></span>
+    </section>
+
+    <section class="card" id="readout">
+      <h2>Readout</h2>
+      <p class="hint">Loading…</p>
+    </section>
+  </aside>
+
+  <main id="stageWrap">
+    <div id="stage" class="empty">
+      <img id="frame" alt="fisheye frame" hidden>
+      <canvas id="overlay"></canvas>
+      <p id="stageHint">
+        <strong>Open a fisheye frame</strong><br>
+        drop a file here, or use <em>Open image…</em>
+      </p>
+    </div>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* The page has one job: hold the raster under a fixed sky overlay and turn the
+   user's manual transform into the numbers the solver needs.  Everything the
+   overlay shows is in *overlay* pixels; everything the detections and the
+   solved pairs use is in *raster* pixels and goes through forward() so it moves
+   with the photo. */
+
+const el = (id) => document.getElementById(id);
+
+/* One pin set, with the lens it may have produced.  From four pins on the
+   server solves the fisheye through them as well, and the answer carries both a
+   re-projected overlay (the circles move onto the lens that was measured) and
+   the coefficients that did it. */
+function freshLive() {
+  return {
+    on: false, pending: null, points: [], rms: null, max: null,
+    lens: null, lensError: null, overlay: null,
+  };
+}
+
+const state = {
+  session: null,      // /api/session payload
+  detections: [],     // raster pixels
+  solved: null,       // /api/align payload
+  align: { roll_deg: 0, mirrored: false, dx: 0, dy: 0 },
+  live: freshLive(),
+  showDetections: true,
+  showGrid: true,
+  // Clusters, nebulae and the Milky Way: drawn for orientation, never fitted.
+  showAids: true,
+  scale: 1,           // css pixels per raster pixel
+  cssW: 0,
+  cssH: 0,
+  ctx: null,
+  busy: false,
+  loaded: false,
+};
+
+/* Every refit takes a ticket; an answer whose ticket is no longer the newest is
+   stale and is dropped rather than applied.  Without this, the answer to an
+   earlier click could land on top of a later one and jump the photo back to a
+   transform the user has already replaced -- and the same is true of an answer
+   still in flight when the frame changes underneath it. */
+let liveTicket = 0;
+function dropLiveRefits() {
+  liveTicket += 1;
+}
+
+function setStatus(text, busy = false) {
+  const node = el("status");
+  node.textContent = text || "";
+  node.classList.toggle("busy", Boolean(busy));
+}
+
+function fmt(value, digits = 1, suffix = "") {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  return Number(value).toFixed(digits) + suffix;
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+/* Server-side reasons can be whole paragraphs (astropy is fond of that): the
+   status bar gets the first line, the readout keeps the full text. */
+function oneLine(text, limit = 90) {
+  const flat = String(text).replace(/\s+/g, " ").trim();
+  return flat.length > limit ? `${flat.slice(0, limit - 1)}…` : flat;
+}
+
+/* Raster pixel -> overlay pixel: the same map as session.Alignment.forward. */
+function forward(x, y) {
+  const width = state.session.image.width;
+  const height = state.session.image.height;
+  const a = state.align;
+  const t = (a.roll_deg * Math.PI) / 180;
+  const cos = Math.cos(t);
+  const sin = Math.sin(t);
+  let u = x - width / 2;
+  const v = y - height / 2;
+  if (a.mirrored) u = -u;
+  return {
+    x: u * cos - v * sin + width / 2 + a.dx,
+    y: u * sin + v * cos + height / 2 + a.dy,
+  };
+}
+
+/* Overlay pixel -> raster pixel: forward() run backwards, and the only other
+   copy of Alignment.inverse in the project.  The pointer clicks a stage pixel
+   while a pin is a pixel of the photograph, and the two differ as soon as the
+   photo has been turned or shifted -- which is exactly the state the user is
+   pinning in. */
+function inverse(x, y) {
+  const width = state.session.image.width;
+  const height = state.session.image.height;
+  const a = state.align;
+  const t = (a.roll_deg * Math.PI) / 180;
+  const cos = Math.cos(t);
+  const sin = Math.sin(t);
+  const u = x - width / 2 - a.dx;
+  const v = y - height / 2 - a.dy;
+  const rx = u * cos + v * sin;
+  return {
+    x: (a.mirrored ? -rx : rx) + width / 2,
+    y: -u * sin + v * cos + height / 2,
+  };
+}
+
+/* The overlay actually on screen.  Once four stars are pinned the server measures
+   the lens through them and sends the rings back re-projected; until then this is
+   the ideal equiangular sky from /api/session.  Both carry the ideal position in
+   x/y -- a pin is defined against those -- and the drawn one in draw_x/draw_y. */
+function overlayInUse() {
+  if (state.live.overlay) return state.live.overlay;
+  return state.session && state.session.overlay;
+}
+
+/* Where a ring is drawn: the calibrated position when there is one. */
+function drawnX(star) {
+  return typeof star.draw_x === "number" ? star.draw_x : star.x;
+}
+
+function drawnY(star) {
+  return typeof star.draw_y === "number" ? star.draw_y : star.y;
+}
+
+function applyTransform() {
+  const a = state.align;
+  const s = state.scale;
+  el("frame").style.transform =
+    `translate(${(a.dx * s).toFixed(2)}px, ${(a.dy * s).toFixed(2)}px) ` +
+    `rotate(${a.roll_deg}deg)` + (a.mirrored ? " scaleX(-1)" : "");
+  el("shiftOut").textContent = `${a.dx.toFixed(1)}, ${a.dy.toFixed(1)} px`;
+  // Do not fight the user's typing: only echo a value back into a field that
+  // does not have focus (a caret jumping mid-number is unusable).
+  if (document.activeElement !== el("roll")) el("roll").value = a.roll_deg;
+  if (document.activeElement !== el("rollNum")) el("rollNum").value = a.roll_deg.toFixed(1);
+  el("mirror").checked = a.mirrored;
+}
+
+function resize() {
+  if (!state.session) return;
+  const wrap = el("stageWrap");
+  const maxW = Math.max(200, wrap.clientWidth - 28);
+  const maxH = Math.max(200, wrap.clientHeight - 28);
+  const aspect = state.session.image.width / state.session.image.height;
+  let width = maxW;
+  let height = width / aspect;
+  if (height > maxH) {
+    height = maxH;
+    width = height * aspect;
+  }
+  state.cssW = Math.floor(width);
+  state.cssH = Math.floor(height);
+  state.scale = state.cssW / state.session.image.width;
+  const stage = el("stage");
+  stage.style.width = state.cssW + "px";
+  stage.style.height = state.cssH + "px";
+  const canvas = el("overlay");
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(state.cssW * dpr);
+  canvas.height = Math.round(state.cssH * dpr);
+  canvas.style.width = state.cssW + "px";
+  canvas.style.height = state.cssH + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  state.ctx = ctx;
+}
+
+/* Stars at least this bright get their name printed, subject to the collision
+   rule below: the catalogue runs to mag 4.5, which is far too many labels. */
+const LABEL_MAG_LIMIT = 2.6;
+
+function ringRadius(vmag) {
+  return 4.5 + 2.0 * Math.max(0, 5.2 - vmag);
+}
+
+/* Star names are drawn greedily and dropped where they would collide: 428
+   catalogue stars at the default limit would otherwise turn the centre of the
+   overlay into a wall of text. */
+function overlaps(a, b) {
+  return !(a.x + a.w < b.x - 2 || b.x + b.w < a.x - 2 ||
+           a.y + a.h < b.y - 2 || b.y + b.h < a.y - 2);
+}
+
+/* Clusters, nebulae and the Milky Way: orientation only, in their own colour.
+
+   Nothing here is a control point.  A pin has to hang off a catalogue star,
+   whose position is a point; a cluster is a fuzzy patch with no centre worth
+   clicking.  The server therefore sends them beside overlay.stars rather than
+   inside it, which is also what keeps starAt() -- the hit test, and the only
+   way into the pin list -- from ever seeing them. */
+function drawAidLayer(aids, s) {
+  const ctx = state.ctx;
+  ctx.save();
+  // The band goes down first and stays translucent: it has to sit under the
+  // grid, the rings and every label to help instead of hide.
+  for (const polygon of aids.band || []) {
+    ctx.beginPath();
+    polygon.forEach(([x, y], index) => {
+      if (index) ctx.lineTo(x * s, y * s);
+      else ctx.moveTo(x * s, y * s);
+    });
+    ctx.closePath();
+    ctx.fillStyle = "rgba(186,150,255,0.11)";
+    ctx.fill();
+    // a hairline edge, so the band still reads over the lit part of a frame
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(198,164,255,0.4)";
+    ctx.stroke();
+  }
+  // Dashed, not solid: a solid ring means "catalogue star, this one is a pin".
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(198,164,255,0.8)";
+  for (const aid of aids.objects || []) {
+    ctx.beginPath();
+    ctx.arc(aid.x * s, aid.y * s, Math.max(3, aid.radius_px * s), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* Aid labels go in last and share the star labels' collision boxes, so neither
+   family can push the other's names out of the way. */
+function drawAidLabels(aids, placed, s) {
+  const ctx = state.ctx;
+  ctx.save();
+  for (const aid of aids.objects || []) {
+    const tx = aid.x * s + Math.max(3, aid.radius_px * s) + 3;
+    const ty = aid.y * s + 3;
+    const box = { x: tx, y: ty - 9, w: ctx.measureText(aid.name).width + 4, h: 12 };
+    if (placed.some((other) => overlaps(other, box))) continue;
+    placed.push(box);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(4,9,16,0.75)";
+    ctx.strokeText(aid.name, tx, ty);
+    ctx.fillStyle = "rgba(210,186,255,0.98)";
+    ctx.fillText(aid.name, tx, ty);
+  }
+  ctx.restore();
+}
+
+function draw() {
+  const ctx = state.ctx;
+  if (!ctx || !state.session) return;
+  const s = state.scale;
+  ctx.clearRect(0, 0, state.cssW, state.cssH);
+  const overlay = overlayInUse();
+
+  if (overlay) {
+    const cx = overlay.centre.x * s;
+    const cy = overlay.centre.y * s;
+    ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+
+    // Clusters, nebulae and the Milky Way, in their own colour and underneath
+    // everything: they are landmarks for the eye, not control points.
+    if (state.showAids && overlay.aids) drawAidLayer(overlay.aids, s);
+
+    // alt-az grid: rings at a fixed zenith distance and the cardinal meridians.
+    // Positions come from the overlay's own lens model, so they are exact for
+    // any projection and field of view.  Everything here is stroked dark first:
+    // the preview is brightness-stretched, so a pale line alone disappears over
+    // the lit part of a night frame.
+    if (state.showGrid && overlay.grid) {
+      ctx.save();
+      ctx.lineJoin = "round";
+      const paintGrid = () => {
+        for (const ring of overlay.grid.rings) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, ring.radius_px * s, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        for (const meridian of overlay.grid.meridians) {
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(meridian.x * s, meridian.y * s);
+          ctx.stroke();
+        }
+      };
+      ctx.strokeStyle = "rgba(4,9,16,0.55)";
+      ctx.lineWidth = 3.2;
+      paintGrid();
+      ctx.strokeStyle = "rgba(176,214,255,0.95)";
+      ctx.lineWidth = 1;
+      paintGrid();
+      ctx.textAlign = "center";
+      for (const meridian of overlay.grid.meridians) {
+        const tx = cx + (meridian.x * s - cx) * 0.955;
+        const ty = cy + (meridian.y * s - cy) * 0.955 + 4;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(4,9,16,0.8)";
+        ctx.strokeText(meridian.label, tx, ty);
+        ctx.fillStyle = "rgba(206,230,255,0.98)";
+        ctx.fillText(meridian.label, tx, ty);
+      }
+      ctx.restore();
+      ctx.textAlign = "left";
+    }
+    // disc rim of the ideal lens, drawn at the measured size of the real one
+    ctx.save();
+    ctx.setLineDash([7, 5]);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(4,9,16,0.5)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, overlay.radius_px * s, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = "rgba(110,185,255,0.95)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, overlay.radius_px * s, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    // centre cross: where the zenith must land
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(4,9,16,0.55)";
+    ctx.lineWidth = 3.4;
+    ctx.beginPath();
+    ctx.moveTo(cx - 16, cy); ctx.lineTo(cx + 16, cy);
+    ctx.moveTo(cx, cy - 16); ctx.lineTo(cx, cy + 16);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(120,195,255,0.98)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    // one circle per bright catalogue star, radii from magnitude; labels go in
+    // a second pass so a neighbouring star's circle cannot overdraw them
+    const picked = state.live.pending;
+    for (const star of overlay.stars) {
+      const isPicked = Boolean(picked) && picked.name === star.name;
+      ctx.strokeStyle = isPicked ? "rgba(255,238,178,1)" : "rgba(255,212,121,0.85)";
+      ctx.lineWidth = isPicked ? 2.6 : 1.25;
+      ctx.beginPath();
+      ctx.arc(drawnX(star) * s, drawnY(star) * s, ringRadius(star.vmag) + (isPicked ? 2 : 0), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    const placed = [];
+    ctx.lineJoin = "round";
+    for (const star of overlay.stars) {
+      if (star.vmag > LABEL_MAG_LIMIT) continue;
+      const text = `${star.name} ${star.vmag.toFixed(1)}`;
+      const tx = drawnX(star) * s + ringRadius(star.vmag) + 3;
+      const ty = drawnY(star) * s - 3;
+      const box = { x: tx, y: ty - 9, w: ctx.measureText(text).width + 4, h: 12 };
+      if (placed.some((other) => overlaps(other, box))) continue;
+      placed.push(box);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(4,9,16,0.75)";
+      ctx.strokeText(text, tx, ty);
+      ctx.fillStyle = "rgba(255,226,150,0.98)";
+      ctx.fillText(text, tx, ty);
+    }
+    // aid names after the star names, sharing their collision boxes
+    if (state.showAids && overlay.aids) drawAidLabels(overlay.aids, placed, s);
+  }
+
+  // hand-pinned stars: the foot rides with the photo, the head is where this
+  // pin's star is drawn -- the ideal circle, or the calibrated one once the lens
+  // has been solved through four of them.  A long line is a pin that disagrees
+  // with the rest, so it turns red instead of quietly averaging in.
+  if (state.live.points.length) {
+    ctx.save();
+    ctx.setLineDash([5, 3]);
+    ctx.lineWidth = 1.4;
+    for (const point of state.live.points) {
+      const foot = forward(point.x, point.y);
+      const headX = typeof point.draw_x === "number" ? point.draw_x : point.star_x;
+      const headY = typeof point.draw_y === "number" ? point.draw_y : point.star_y;
+      ctx.strokeStyle = point.residual_px > 8
+        ? "rgba(255,138,128,0.95)"
+        : "rgba(255,203,107,0.95)";
+      ctx.beginPath();
+      ctx.moveTo(foot.x * s, foot.y * s);
+      ctx.lineTo(headX * s, headY * s);
+      ctx.stroke();
+      // crosshair where the photo now puts the pinned pixel: the gap between it
+      // and the circle is the residual this pair still carries
+      ctx.beginPath();
+      ctx.moveTo(foot.x * s - 5, foot.y * s);
+      ctx.lineTo(foot.x * s + 5, foot.y * s);
+      ctx.moveTo(foot.x * s, foot.y * s - 5);
+      ctx.lineTo(foot.x * s, foot.y * s + 5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // detections ride with the photo
+  if (state.showDetections && state.detections.length) {
+    ctx.fillStyle = "rgba(235,245,255,0.42)";
+    for (const det of state.detections) {
+      const p = forward(det.x, det.y);
+      ctx.beginPath();
+      ctx.arc(p.x * s, p.y * s, 1.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // solved matches: detection -> where its star is predicted to be
+  if (state.solved) {
+    for (const pair of state.solved.pairs) {
+      const det = forward(pair.x, pair.y);
+      const star = forward(pair.star_x, pair.star_y);
+      ctx.strokeStyle = "rgba(90,230,138,0.55)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(det.x * s, det.y * s);
+      ctx.lineTo(star.x * s, star.y * s);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(90,230,138,0.95)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(det.x * s, det.y * s, 3.4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+}
+
+function renderReadout() {
+  const session = state.session;
+  const solved = state.solved;
+  const circle = session.circle;
+  const meta = session.meta;
+  const ov = session.overlay;
+  const html = [];
+
+  if (session.warnings && session.warnings.length) {
+    html.push(session.warnings.map((text) => `<div class="warn">⚠ ${escapeHtml(text)}</div>`).join(""));
+  }
+
+  html.push(`<dl>
+    <dt>Camera</dt><dd>${escapeHtml(meta.camera || "—")}</dd>
+    <dt>Lens</dt><dd>${escapeHtml(meta.lens || "—")}</dd>
+    <dt>Exposure</dt><dd>${fmt(meta.exposure_s, 4, " s")} · ISO ${meta.iso ?? "—"}</dd>
+  </dl><div class="sep"></div>`);
+
+  html.push(`<dl>
+    <dt>Disc centre</dt><dd>${fmt(circle.xc_frac, 4)} / ${fmt(circle.yc_frac, 4)}</dd>
+    <dt>Disc radius</dt><dd>${fmt(circle.sigma_edge * session.image.height / 2, 1, " px")}</dd>
+    <dt>Edge contrast</dt><dd>${fmt(circle.contrast, 1)}</dd>
+    <dt>Fit confidence</dt><dd>${fmt(circle.confidence, 2)} · axis ${fmt(circle.axis_ratio, 3)}</dd>
+    <dt>Detections</dt><dd>${session.counts.point_like} / ${session.counts.detections}</dd>
+    <dt>Catalogue</dt><dd>${session.counts.catalogue ?? "—"} above horizon</dd>
+    <dt>Stars drawn</dt><dd>${ov ? ov.count : "—"} (mag ≤ ${ov ? ov.mag_limit : "—"})</dd>
+  </dl>`);
+
+  if (ov) {
+    const seed = session.seed_camera;
+    html.push(`<div class="sep"></div><dl>
+      <dt>Seed roll</dt><dd>${fmt(seed.roll_deg, 2, "°")}</dd>
+      <dt>Seed centre</dt><dd>${fmt(seed.centre_px.x, 1)} / ${fmt(seed.centre_px.y, 1)} px</dd>
+      <dt>Seed mirrored</dt><dd>${seed.mirrored ? "yes" : "no"}</dd>
+      <dt>Transform check</dt><dd>${fmt(session.transform_check_px, 6, " px")}</dd>
+    </dl>`);
+  } else if (session.overlay_error) {
+    html.push(`<div class="warn">${escapeHtml(session.overlay_error)}</div>`);
+  }
+
+  if (solved) {
+    const solution = solved.solution;
+    const camera = solution.camera;
+    const lens = solved.camera.lens;
+    html.push(`<div class="sep"></div><dl>
+      <dt>Matches</dt><dd>${solution.matches}</dd>
+      <dt>RMS</dt><dd>${fmt(solution.rms_deg, 3, "°")}</dd>
+      <dt>Roll</dt><dd>${fmt(camera.roll_deg, 2, "°")}</dd>
+      <dt>Tilt</dt><dd>${fmt(camera.tilt_x_deg, 2, "°")} / ${fmt(camera.tilt_y_deg, 2, "°")}</dd>
+      <dt>Centre</dt><dd>${fmt(camera.xc, 4)} / ${fmt(camera.yc, 4)}</dd>
+      <dt>Mirrored</dt><dd>${solution.mirrored ? "yes" : "no"}</dd>
+      <dt>Disc edge</dt><dd>${fmt(camera.theta_edge_deg, 2, "°")}</dd>
+      <dt>Iterations</dt><dd>${solution.iterations}${solution.used_coarse ? " · coarse" : ""}</dd>
+      <dt>Polynomial</dt><dd>${escapeHtml(lens.coeffs.slice(0, 3).map((c) => Number(c).toFixed(2)).join(", "))} …</dd>
+    </dl>`);
+    if (solution.notes && solution.notes.length) {
+      html.push(`<ul class="notes">${solution.notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>`);
+    }
+    const pairs = solved.pairs.slice(0, 8);
+    if (pairs.length) {
+      html.push(`<div class="sep"></div>${pairs
+        .map((pair) => `<div class="pair"><span>${escapeHtml(pair.name)} ${pair.vmag.toFixed(1)}</span><span>${(pair.sep_deg * 60).toFixed(1)}′</span></div>`)
+        .join("")}`);
+    }
+  }
+
+  if (state.live.points.length) {
+    html.push(`<div class="sep"></div><dl>
+      <dt>Pinned</dt><dd>${state.live.points.length} star${state.live.points.length === 1 ? "" : "s"}</dd>
+      <dt>${state.live.lens ? "Lens RMS" : "Pin RMS"}</dt><dd>${fmt(state.live.rms, 2, " px")}</dd>
+      <dt>Pin worst</dt><dd>${fmt(state.live.max, 2, " px")}</dd>
+    </dl>${state.live.points
+      // One row per pin, with the error it still carries and a way to drop it:
+      // the row is the only handle on a pin whose circle is hidden behind the
+      // photo, or which the user has simply lost track of.
+      .map((point) => `<div class="pair"><span>${escapeHtml(point.name)}</span><span>${fmt(point.residual_px, 1, " px")}<button class="pin-remove" data-remove="${escapeHtml(point.name)}" title="remove this pin">✕</button></span></div>`)
+      .join("")}`);
+  }
+
+  if (state.live.lens) {
+    const lens = state.live.lens;
+    html.push(`<div class="sep"></div><dl>
+      <dt>Lens from pins</dt><dd>${lens.pins} star${lens.pins === 1 ? "" : "s"} · σ ${fmt(lens.covers_sigma, 2)}</dd>
+      <dt>Focal length</dt><dd>${fmt(lens.focal_px, 1, " px/rad")}</dd>
+      <dt>k terms</dt><dd>${lens.num_coefficients} · ${escapeHtml((lens.coefficients || []).map((k) => Number(k).toFixed(5)).join(", "))}</dd>
+      <dt>Optical centre</dt><dd>${fmt(lens.centre_px.x, 1)} / ${fmt(lens.centre_px.y, 1)} px</dd>
+      <dt>θ at rim</dt><dd>${fmt(lens.lens && lens.lens.theta_sigma_edge_deg, 2, "°")}</dd>
+    </dl>`);
+    if (lens.notes && lens.notes.length) {
+      html.push(`<ul class="notes">${lens.notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>`);
+    }
+  } else if (state.live.lensError) {
+    html.push(`<div class="sep"></div><div class="warn">${escapeHtml(state.live.lensError)}</div>`);
+  }
+
+  el("readout").innerHTML = `<h2>Readout</h2>${html.join("")}`;
+  el("detCount").textContent = `${session.counts.point_like} point sources`;
+  el("timeNote").textContent = session.time.source || "";
+  el("frameName").textContent = session.image.name;
+  el("frameSize").textContent = `${session.image.width}×${session.image.height}`;
+}
+
+/* Query for one session request.  The time/place panel *shows* what is in
+   effect, it does not impose it: echoing those fields back on every request
+   carried the previous frame's clock and position onto the frame just opened
+   (the server keeps them as an override on the new session), so the star
+   circles came out built for the old sky and never moved.  Only *apply time /
+   place* sends a site, and it sends exactly what the user typed. */
+function siteQuery(site = null) {
+  const params = new URLSearchParams();
+  params.set("projection", el("projection").value || "equidistant");
+  if (el("fov").value) params.set("fov", el("fov").value);
+  if (el("magLimit").value) params.set("mag", el("magLimit").value);
+  if (site) {
+    const utc = String(site.utc || "").trim();
+    if (utc) params.set("utc", utc.length === 16 ? `${utc}:00` : utc);
+    if (site.lat) params.set("lat", site.lat);
+    if (site.lon) params.set("lon", site.lon);
+  }
+  const a = state.align;
+  params.set("roll_deg", a.roll_deg.toFixed(3));
+  params.set("dx", a.dx.toFixed(3));
+  params.set("dy", a.dy.toFixed(3));
+  params.set("mirrored", a.mirrored ? "1" : "0");
+  return params;
+}
+
+async function loadSession(site = null) {
+  setStatus("loading frame", true);
+  try {
+    const response = await fetch(`/api/session?${siteQuery(site).toString()}`);
+    if (response.status === 409) {      // no frame open yet: invite one instead
+      showEmptyState();
+      return;
+    }
+    const data = await readJson(response, "GET /api/session");
+    const first = state.session === null;
+    state.session = data;
+    el("stage").classList.remove("empty");
+    if (first) {
+      el("projection").innerHTML = data.projections
+        .map((name) => `<option value="${name}">${name}</option>`)
+        .join("");
+      // The panel always reflects the frame now on screen, including when it
+      // has no metadata at all (a leftover clock from the previous frame would
+      // read as if this frame carried it).
+      el("utc").value = data.time.captured_utc ? data.time.captured_utc.slice(0, 19) : "";
+      el("lat").value = data.time.latitude ?? "";
+      el("lon").value = data.time.longitude ?? "";
+      await loadDetections();
+    }
+    if (data.overlay) {
+      el("projection").value = data.overlay.projection;
+      el("fov").value = data.overlay.fov_deg;
+      el("magLimit").value = data.overlay.mag_limit;
+    }
+    if (first) {
+      // Every frame is served from the same URL, so it carries a stamp: a file
+      // reopened under the same name must not come back from the cache.
+      el("frame").hidden = false;
+      el("frame").src = `${data.image.url}?v=${Date.now()}`;
+    }
+    // The pins hang off catalogue stars, so a new sky (projection, field of
+    // view, time or place) moves their targets: re-aim them and refit through
+    // them before anything is drawn, or the lines would point at yesterday's
+    // overlay.
+    retargetLive();
+    if (state.live.points.length && data.overlay) await sendPins(state.live.points, true);
+    // A new overlay is a new problem: any previous solution no longer applies.
+    state.solved = null;
+    el("save").disabled = true;
+    el("saveNote").textContent = "";
+    resize();
+    applyTransform();
+    draw();
+    renderReadout();
+    syncLive();
+    setStatus(
+      data.overlay_error ? `overlay unavailable: ${oneLine(data.overlay_error)}` : "ready"
+    );
+
+  } catch (error) {
+    // Nothing could be rendered for the frame the page was told about, so do
+    // not leave the previous photo under a stale overlay: start from empty.
+    if (state.session === null) showEmptyState();
+    setStatus(String(error.message || error));
+  }
+}
+
+async function loadDetections() {
+  const response = await fetch("/api/detections");
+  const data = await readJson(response, "GET /api/detections");
+  state.detections = data.stars || [];
+}
+
+/* Send one file to the server and make it the frame under the overlay.  The
+   file goes up as a multipart body; the server answers with the size it read,
+   and everything else is rebuilt by loadSession(). */
+async function openFrame(file) {
+  if (!file) return;
+  setStatus(`opening ${file.name}`, true);
+  el("openImage").disabled = true;
+  try {
+    const body = new FormData();
+    body.append("file", file, file.name);
+    const response = await fetch("/api/open", { method: "POST", body });
+    // The answer only confirms what was read (name and size); everything the
+    // page draws comes back from /api/session, so the body itself is checked
+    // for being JSON and then dropped.
+    await readJson(response, "POST /api/open");
+    // A different frame is a different problem: the manual alignment, the
+    // detections, the pins and the last solve all belonged to the old one.
+    state.align = { roll_deg: 0, mirrored: false, dx: 0, dy: 0 };
+    state.live = freshLive();
+    dropLiveRefits();
+    state.solved = null;
+    state.detections = [];
+    state.session = null;
+    syncLive();
+    applyTransform();
+    await loadSession();
+  } catch (error) {
+    setStatus(String(error.message || error));
+  } finally {
+    el("openImage").disabled = false;
+  }
+}
+
+/* Nothing open yet: clear the stage and say how to start. */
+function showEmptyState() {
+  state.session = null;
+  state.solved = null;
+  state.detections = [];
+  state.live = freshLive();
+  dropLiveRefits();
+  state.ctx = null;
+  const frame = el("frame");
+  frame.hidden = true;
+  frame.removeAttribute("src");
+  const canvas = el("overlay");
+  canvas.width = 0;
+  canvas.height = 0;
+  const stage = el("stage");
+  stage.classList.add("empty");
+  stage.style.width = "";
+  stage.style.height = "";
+  el("frameName").textContent = "no frame";
+  el("frameSize").textContent = "";
+  el("detCount").textContent = "";
+  el("timeNote").textContent = "";
+  // No frame, no site: the previous frame's clock left in the panel would look
+  // like it applied to whatever is opened next.
+  el("utc").value = "";
+  el("lat").value = "";
+  el("lon").value = "";
+  el("save").disabled = true;
+  el("saveNote").textContent = "";
+  el("readout").innerHTML =
+    '<h2>Readout</h2><p class="hint">No frame open — drop one on the stage, or use <em>Open image…</em>.</p>';
+  syncLive();
+  setStatus("no frame");
+}
+
+function solvePayload() {
+  return {
+    roll_deg: state.align.roll_deg,
+    mirrored: state.align.mirrored,
+    dx: state.align.dx,
+    dy: state.align.dy,
+    projection: el("projection").value,
+    fov_deg: Number(el("fov").value),
+    mag_limit: Number(el("magLimit").value),
+  };
+}
+
+/* Read a reply that is supposed to be JSON.
+   A server that does not have the endpoint -- an older build still running, or
+   something else answering on the port -- replies with an HTML error page, and
+   response.json() then fails at the first character of that page ("Unexpected
+   token '<'"): the page reports a JSON parse error in the corner of the screen
+   and says nothing about the server being out of date.  Reading the body as
+   text first keeps the status, the first line of whatever came back, and a plain
+   hint for the one cause that actually happens in practice. */
+async function readJson(response, label) {
+  const text = await response.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch (error) {
+    data = null;
+  }
+  if (!response.ok) {
+    if (data && data.error) {
+      throw new Error(`${label} failed (${response.status}): ${data.error}`);
+    }
+    const html = data === null && text.trimStart().startsWith("<");
+    const reason = html
+      ? "an HTML error page instead of JSON — the server does not know this " +
+        "endpoint, so it is an older build: restart it"
+      : oneLine(text, 120) || response.statusText || "no error message";
+    throw new Error(`${label} failed (${response.status}): ${reason}`);
+  }
+  if (data === null) {
+    throw new Error(`${label} did not answer with JSON: ${oneLine(text, 120)}`);
+  }
+  return data;
+}
+
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return readJson(response, `POST ${url}`);
+}
+
+async function alignNow() {
+  if (state.busy) return;
+  state.busy = true;
+  el("align").disabled = true;
+  el("align").textContent = "Solving…";
+  setStatus("solving from the manual alignment", true);
+  try {
+    state.solved = await postJson("/api/align", solvePayload());
+    el("save").disabled = false;
+    el("saveNote").textContent =
+      `${state.solved.solution.matches} matches · RMS ${fmt(state.solved.solution.rms_deg, 3, "°")}`;
+    draw();
+    renderReadout();
+    setStatus(`solved: ${state.solved.solution.matches} matches`);
+  } catch (error) {
+    setStatus(String(error.message || error));
+  } finally {
+    state.busy = false;
+    el("align").disabled = false;
+    el("align").textContent = "Align — let the solver take over";
+  }
+}
+
+async function saveNow() {
+  el("save").disabled = true;
+  setStatus("saving", true);
+  try {
+    const data = await postJson("/api/save", solvePayload());
+    el("saveNote").textContent = `wrote ${data.path} · ${data.bytes} bytes`;
+    setStatus("saved");
+  } catch (error) {
+    setStatus(String(error.message || error));
+  } finally {
+    el("save").disabled = false;
+  }
+}
+
+/* ------------------------------------------------------------ live align */
+/* Pinning is georeferencing: pick a circle (the sky's idea of where the star
+   is), then pick that star in the photo (where it really is).  Every pair is
+   posted in the two frames the fit works in -- the circle's overlay pixel and
+   the *photograph's* pixel under the pointer -- and the server refits the whole
+   transform through all of them at once.  The answer carries the photo pixel of
+   each pair, which is what draw() follows once the photo has moved, plus the
+   error each pair still carries.
+
+   Up to three pins that is a rigid fit, and the third can only *report* the
+   error that is left -- what is left is radial, and a shift/rotation has no
+   term for it.  The fourth pin is where the server starts solving the lens
+   through the same pairs (centre, focal length and, from the fifth, the theta^3
+   and theta^5 terms -- the series stops at theta^5, so a sixth pin and beyond
+   over-determine the same five unknowns) and answers with the overlay
+   re-projected through it, so the circles move onto the real stars.  Align then
+   hands the measured lens to the solver as its starting point instead of a
+   nominal fisheye. */
+
+/* What goes on the wire: the circle's place in the overlay and the pixel of the
+   *photograph* the user clicked.  placePin() has already undone the page's own
+   transform, so the pair is in the only two frames the fit works in. */
+function pinBody(point) {
+  return {
+    name: point.name,
+    star_x: point.star_x,
+    star_y: point.star_y,
+    x: point.x,
+    y: point.y,
+  };
+}
+
+function liveHint() {
+  const live = state.live;
+  const pinned = live.points.length;
+  const lens = live.lens;
+  const summary = lens
+    ? `${pinned} pinned · lens: ${lens.num_coefficients} k term${lens.num_coefficients === 1 ? "" : "s"} · rms ${fmt(live.rms, 1, " px")}`
+    : `${pinned} pinned · rms ${fmt(live.rms, 1, " px")}`;
+  if (!live.on) {
+    return pinned
+      ? `${summary} — click a pinned circle, or ✕, to drop that pin`
+      : "Click a circle, then the same star in the photo.";
+  }
+  if (live.pending) return `${live.pending.name}: click it in the photo (esc cancels)`;
+  if (pinned) {
+    // The fourth star is the one that turns the pins from a rigid on-screen fit
+    // into a lens: say so rather than letting the count look arbitrary.
+    if (!lens && pinned === 3) return `${summary} — one more star solves the lens`;
+    if (live.lensError) return `${live.lensError}`;
+    return `${summary} — click another circle, or ✕ in the readout to drop one`;
+  }
+  return "Click a circle to pin that star.";
+}
+
+function syncLive() {
+  const live = state.live;
+  el("live").textContent = live.on ? "done" : "pin stars…";
+  el("liveUndo").hidden = !live.points.length;
+  el("liveNote").textContent = liveHint();
+  el("stage").classList.toggle("live", live.on);
+  el("stage").classList.toggle("pinning", Boolean(live.pending));
+}
+
+/* A pointer event in the stage's own pixels.  The overlay is drawn in exactly
+   those pixels, so this is what starAt() measures against -- the circles are the
+   sky and do not move with the photo.  A pin is the opposite kind of point: it
+   is a pixel of the photograph, so placePin() turns this one round through
+   inverse() and posts the photo pixel, not the stage pixel. */
+function stagePoint(event) {
+  const rect = el("stage").getBoundingClientRect();
+  const s = state.scale || 1;
+  return { x: (event.clientX - rect.left) / s, y: (event.clientY - rect.top) / s };
+}
+
+/* The circle under the pointer.  The slack is in css pixels: the rings are
+   small on purpose, and missing one three times in a row is infuriating. */
+function starAt(event) {
+  const overlay = overlayInUse();
+  if (!overlay) return null;
+  const rect = el("stage").getBoundingClientRect();
+  const s = state.scale || 1;
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  let best = null;
+  let bestDistance = Infinity;
+  for (const star of overlay.stars) {
+    const distance = Math.hypot(drawnX(star) * s - x, drawnY(star) * s - y);
+    if (distance <= ringRadius(star.vmag) + 6 && distance < bestDistance) {
+      best = star;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function selectStar(star) {
+  state.live.pending = { name: star.name, star_x: star.x, star_y: star.y };
+  syncLive();
+  draw();
+  setStatus(`${star.name}: click it in the photo`);
+}
+
+/* Refit through every pin.  An empty list simply forgets them: the transform on
+   screen is already the one the last fit produced, so there is nothing to undo. */
+async function sendPins(points, quiet = false) {
+  if (!state.session) return;
+  if (!points.length) {
+    dropLiveRefits();          // an answer still in flight must not restore them
+    state.live.points = [];
+    state.live.rms = null;
+    state.live.max = null;
+    state.live.lens = null;
+    state.live.lensError = null;
+    state.live.overlay = null;
+    syncLive();
+    draw();
+    renderReadout();
+    return;
+  }
+  const ticket = ++liveTicket;
+  try {
+    if (!quiet) setStatus("refitting through the pins", true);
+    const data = await postJson("/api/live", {
+      ...solvePayload(),
+      points: points.map(pinBody),
+    });
+    if (ticket !== liveTicket) return;
+    state.align = { ...data.alignment };
+    state.live.points = data.points;
+    state.live.rms = data.rms_px;
+    state.live.max = data.max_px;
+    // From four pins the answer also carries the lens it solved through them --
+    // centre, focal length and the odd k terms -- plus the overlay re-projected
+    // through it, which is where the circles move onto the stars.
+    state.live.lens = data.lens || null;
+    state.live.lensError = data.lens_error || null;
+    state.live.overlay = data.overlay && data.overlay.calibrated ? data.overlay : null;
+    // The solve on record belongs to the transform this one just replaced.
+    state.solved = null;
+    el("save").disabled = true;
+    el("saveNote").textContent = state.live.lens
+      ? `lens measured from ${data.lens.pins} stars — press Align to refine it`
+      : "alignment changed — press Align again";
+    applyTransform();
+    draw();
+    renderReadout();
+    syncLive();
+    if (!quiet) {
+      const lens = state.live.lens;
+      setStatus(
+        lens
+          ? `${data.points.length} pinned · lens ${lens.focal_px.toFixed(0)} px/rad, ${lens.num_coefficients} k term${lens.num_coefficients === 1 ? "" : "s"} · rms ${fmt(data.rms_px, 2, " px")}`
+          : `${data.points.length} pinned · rms ${fmt(data.rms_px, 2, " px")}`
+      );
+    }
+  } catch (error) {
+    if (!quiet) setStatus(String(error.message || error));
+  }
+}
+
+/* Take one pin out of the set.  The pairs that are left are refitted from
+   scratch -- the server never nudges an existing fit -- so a removed pin leaves
+   no trace in the transform, which is the difference between this and an undo
+   that steps back through the edits.  A pick that was waiting to be placed is
+   dropped too: the user has just said they are not pinning that star. */
+function dropPin(name) {
+  const left = state.live.points.filter((point) => point.name !== name);
+  if (left.length === state.live.points.length) return false;
+  state.live.pending = null;
+  setStatus(`${name}: pin removed`);
+  sendPins(left);
+  return true;
+}
+
+function placePin(event) {
+  const pending = state.live.pending;
+  if (!pending) return;
+  // The pointer says where the star *is on screen*, which is where the photo
+  // currently puts it; the pin is the pixel of the photo that lands there, so
+  // the fit can later put it under the circle without the picture jumping.
+  const shown = stagePoint(event);
+  const click = inverse(shown.x, shown.y);
+  state.live.pending = null;
+  // Pinning the same star again replaces its pair: that is how a click that
+  // landed on the wrong speck is corrected.
+  const pin = {
+    name: pending.name,
+    star_x: pending.star_x,
+    star_y: pending.star_y,
+    x: click.x,
+    y: click.y,
+  };
+  sendPins(state.live.points.filter((point) => point.name !== pin.name).concat(pin));
+}
+
+/* The pins hang off catalogue stars, so a new sky -- projection, field of view,
+   time or place -- moves their targets.  Re-aim them by name and drop the ones
+   whose circle is gone (a fainter star limit), rather than fitting against
+   positions the overlay no longer shows. */
+function retargetLive() {
+  const overlay = state.session && state.session.overlay;
+  if (!overlay) return;
+  const byName = new Map(overlay.stars.map((star) => [star.name, star]));
+  state.live.points = state.live.points.reduce((kept, point) => {
+    const star = byName.get(point.name);
+    if (star) kept.push({ ...point, star_x: star.x, star_y: star.y });
+    return kept;
+  }, []);
+  // The re-projected rings and the numbers that came with them belong to the
+  // previous sky; the refit below (if any pins survive) sends new ones.
+  state.live.lens = null;
+  state.live.lensError = null;
+  state.live.overlay = null;
+}
+
+el("live").addEventListener("click", () => {
+  state.live.on = !state.live.on;
+  state.live.pending = null;
+  syncLive();
+  draw();
+  setStatus(state.live.on ? "live: pick a star circle" : "live alignment off");
+});
+
+el("liveUndo").addEventListener("click", () => {
+  state.live.pending = null;
+  sendPins(state.live.points.slice(0, -1));
+});
+
+/* ---------------------------------------------------------------- interaction */
+el("roll").addEventListener("input", (event) => {
+  state.align.roll_deg = Number(event.target.value);
+  applyTransform();
+  draw();
+});
+
+el("rollNum").addEventListener("input", (event) => {
+  const value = Number(event.target.value);
+  if (!Number.isFinite(value)) return;
+  state.align.roll_deg = value;
+  applyTransform();
+  draw();
+});
+
+el("mirror").addEventListener("change", (event) => {
+  state.align.mirrored = event.target.checked;
+  applyTransform();
+  draw();
+});
+
+el("reset").addEventListener("click", () => {
+  const hadPins = state.live.points.length > 0;
+  state.align = { roll_deg: 0, mirrored: false, dx: 0, dy: 0 };
+  state.live = freshLive();
+  dropLiveRefits();
+  applyTransform();
+  draw();
+  syncLive();
+  if (hadPins) renderReadout();   // only the pin block goes away
+});
+
+el("showGrid").addEventListener("change", (event) => {
+  state.showGrid = event.target.checked;
+  draw();
+});
+
+el("showAids").addEventListener("change", (event) => {
+  state.showAids = event.target.checked;
+  draw();
+});
+
+/* The ✕ in the pin list.  The rows are rebuilt on every refit, so the buttons
+   carry their star's name in a data attribute and the readout keeps one
+   listener, instead of handlers that would be replaced along with the rows. */
+el("readout").addEventListener("click", (event) => {
+  const name = event.target && event.target.dataset ? event.target.dataset.remove : null;
+  if (name) dropPin(name);
+});
+
+el("showDets").addEventListener("change", (event) => {
+  state.showDetections = event.target.checked;
+  draw();
+});
+
+el("projection").addEventListener("change", () => loadSession());
+el("fov").addEventListener("change", () => loadSession());
+el("magLimit").addEventListener("change", () => loadSession());
+/* The one place a site goes to the server: what the user typed, nothing else. */
+el("applySite").addEventListener("click", () =>
+  loadSession({ utc: el("utc").value, lat: el("lat").value, lon: el("lon").value })
+);
+el("align").addEventListener("click", alignNow);
+el("save").addEventListener("click", saveNow);
+
+/* The picker: a button that forwards to the hidden file input, and the input
+   itself, whose value is cleared so choosing the same file twice still fires. */
+el("openImage").addEventListener("click", () => el("openFile").click());
+el("openFile").addEventListener("change", (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = "";
+  openFrame(file);
+});
+
+/* Drag the photo under the overlay.  The pointer offset is converted from CSS
+   pixels into raster pixels so the drag stays 1:1 with the image. */
+const stage = el("stage");
+let drag = null;
+
+/* A press shorter than this never moves the photo: a click has to be able to
+   pick a circle without nudging the frame by a pixel or two first (css px). */
+const DRAG_THRESHOLD = 3;
+
+/* An empty stage doubles as the drop target (clicking it opens the picker). */
+stage.addEventListener("click", () => {
+  if (!state.session) el("openFile").click();
+});
+
+const isFileDrag = (event) =>
+  Boolean(event.dataTransfer) &&
+  Array.from(event.dataTransfer.types || []).includes("Files");
+
+["dragenter", "dragover"].forEach((type) =>
+  stage.addEventListener(type, (event) => {
+    if (!isFileDrag(event)) return;   // dragging the photo is a pointer gesture
+    event.preventDefault();
+    stage.classList.add("drop");
+  })
+);
+stage.addEventListener("dragleave", (event) => {
+  if (event.target === stage) stage.classList.remove("drop");
+});
+stage.addEventListener("drop", (event) => {
+  if (!isFileDrag(event)) return;
+  event.preventDefault();
+  stage.classList.remove("drop");
+  const file = event.dataTransfer.files && event.dataTransfer.files[0];
+  openFrame(file);
+});
+
+/* A frame dropped just outside the stage would make the browser navigate away
+   from the page and lose the alignment, so the rest of the window swallows the
+   drop instead (the stage handler above is what actually opens the file). */
+["dragover", "drop"].forEach((type) =>
+  window.addEventListener(type, (event) => {
+    if (isFileDrag(event)) event.preventDefault();
+  })
+);
+
+stage.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || !state.session) return;
+  drag = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    dx: state.align.dx,
+    dy: state.align.dy,
+    moved: false,
+    // A star under the press is only *picked* if the press stays a click.  The
+    // test runs with live mode off as well, because the pins outlive the mode
+    // and a pinned circle has to stay removable after it has been left.
+    star: state.live.on || state.live.points.length ? starAt(event) : null,
+  };
+  stage.setPointerCapture(event.pointerId);
+});
+
+stage.addEventListener("pointermove", (event) => {
+  if (!drag || event.pointerId !== drag.id) return;
+  if (!drag.moved) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < DRAG_THRESHOLD) return;
+    drag.moved = true;
+    stage.classList.add("dragging");
+  }
+  const scale = state.scale || 1;
+  state.align.dx = drag.dx + (event.clientX - drag.x) / scale;
+  state.align.dy = drag.dy + (event.clientY - drag.y) / scale;
+  applyTransform();
+  draw();
+});
+
+/* A press ends as either a drag or a click.  A click on a circle picks it, and
+   a click on anything else -- or on the circle already picked, which is where a
+   star that is already in its ring ends up -- pins the picked star there.  A
+   click on a circle that *already carries a pin* takes that pin out instead:
+   with nothing picked, the circle under the pointer is the pin itself.  A
+   cancelled pointer never places anything. */
+function endDrag(event, allowClick) {
+  if (!drag || event.pointerId !== drag.id) return;
+  const press = drag;
+  drag = null;
+  stage.classList.remove("dragging");
+  if (press.moved || !allowClick) return;
+  const pending = state.live.pending;
+  if (press.star && (!pending || press.star.name !== pending.name)) {
+    if (!pending && dropPin(press.star.name)) return;
+    if (state.live.on) selectStar(press.star);
+  } else if (pending) placePin(event);
+}
+stage.addEventListener("pointerup", (event) => endDrag(event, true));
+stage.addEventListener("pointercancel", (event) => endDrag(event, false));
+
+/* Arrow keys nudge the photo (shift = 10 px), so a drag can be finished off
+   precisely against the rings. */
+window.addEventListener("keydown", (event) => {
+  if (!state.session || (event.target.closest && event.target.closest("input, select, textarea"))) return;
+  // Esc backs out of live alignment one step at a time: first the star that is
+  // waiting to be placed, then the mode itself.
+  if (event.key === "Escape") {
+    if (state.live.pending) state.live.pending = null;
+    else if (state.live.on) state.live.on = false;
+    else return;
+    event.preventDefault();
+    syncLive();
+    draw();
+    return;
+  }
+  const step = event.shiftKey ? 10 : 1;
+  const moves = {
+    ArrowLeft: [-step, 0],
+    ArrowRight: [step, 0],
+    ArrowUp: [0, -step],
+    ArrowDown: [0, step],
+  };
+  if (!(event.key in moves)) return;
+  const [dx, dy] = moves[event.key];
+  state.align.dx += dx;
+  state.align.dy += dy;
+  event.preventDefault();
+  applyTransform();
+  draw();
+});
+
+window.addEventListener("resize", () => {
+  resize();
+  applyTransform();
+  draw();
+});
+
+loadSession();
+</script>
+</body>
+</html>
