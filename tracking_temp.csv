@@ -1,0 +1,147 @@
+
+Folder                   Created (UTC)           Age                Files  New?
+-----------------------------------------------------------------------------------------------------------------------------------------------
+seq_2026-11-08T01-10-24  2026-11-08 01:10:24     1d 15h ago            1412             lat:55.8145863  lon:-97.9247551  *** PUBLISHED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-11-08T01-10-24' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-11-01T03-31-23  2026-11-01 03:31:23     8d 12h ago            1561             lat:50.3875386667       lon:-99.0840273333  *** PUBLISHED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-11-01T03-31-23' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-31T08-09-48  2026-10-31 08:09:48     2d 3h ago             1678             lat:-44.9737523 lon:169.2413303  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-31T08-09-48' --unit_text $'UNIT 16\nŌTĀKOU, NZ'
+seq_2026-10-31T00-13-26  2026-10-31 00:13:26     16h 6m ago            2394             lat:50.3874875  lon:-99.0838956667  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-31T00-13-26' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-25T04-35-59  2026-10-25 04:35:59     6d 11h ago            1908             lat:50.3875113333       lon:-99.0839936667  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-25T04-35-59' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-22T00-55-08  2026-10-22 00:55:08     1d 10h ago            5393             lat:55.7501459  lon:-97.8478806  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-22T00-55-08' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-10-22T00-49-42  2026-10-22 00:49:42     1d 10h ago            2002             lat:50.3875788333       lon:-99.0838728333  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-22T00-49-42' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-21T01-09-07  2026-10-21 01:09:07     20h 30m ago           1784             lat:50.387564   lon:-99.0838605  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-21T01-09-07' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-21T00-58-31  2026-10-21 00:58:31     20h 40m ago            669             lat:55.8146186  lon:-97.9248085  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-21T00-58-31' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-10-20T02-00-56  2026-10-20 02:00:56     1d 19h ago             133             lat:50.3875355  lon:-99.0839688333  *** SMALL
+seq_2026-10-14T03-18-56  2026-10-14 03:18:56     4d 10h ago               4             lat:55.750056   lon:-97.848181  *** SMALL
+seq_2026-10-14T03-17-44  2026-10-14 03:17:44     4d 10h ago               5             lat:55.7500516  lon:-97.8482056  *** SMALL
+seq_2026-10-13T01-56-34  2026-10-13 01:56:34     5d 12h ago             967             lat:55.5093078  lon:-98.1025562  *** NEW
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-13T01-56-34' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-10-13T01-54-16  2026-10-13 01:54:16     5d 12h ago               4             lat:55.5093417  lon:-98.1025568  *** SMALL
+seq_2026-10-16T10-36-55  2026-10-16 10:36:55     3h 21m ago               4             lat:50.3875213333       lon:-99.0839553333  *** SMALL
+seq_2026-10-16T03-31-12  2026-10-16 03:31:12     10h 27m ago           1485             lat:50.3875536667       lon:-99.0840163333  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-16T03-31-12' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-11T17-20-57  2026-10-11 17:20:57     3d 9h ago               14             lat:-44.9737673 lon:169.2412381  *** SMALL
+seq_2026-10-11T17-19-44  2026-10-11 17:19:44     3d 9h ago                5             lat:-44.9737509 lon:169.2412425  *** SMALL
+seq_2026-10-11T17-19-41  2026-10-11 17:19:41     3d 9h ago                2             lat:-44.9737504 lon:169.2412434  *** SMALL
+seq_2026-10-11T17-19-40  2026-10-11 17:19:40     3d 9h ago                2             lat:-44.9737503 lon:169.2412441  *** SMALL
+seq_2026-10-11T08-08-56  2026-10-11 08:08:56     3d 18h ago            1834             lat:-44.9737286 lon:169.241259  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-11T08-08-56' --unit_text $'UNIT 16\nŌTĀKOU, NZ'
+seq_2026-10-11T02-31-29  2026-10-11 02:31:29     4d 0h ago               21             lat:-44.9739384 lon:169.2414246  *** SMALL
+seq_2026-10-11T00-24-38  2026-10-11 00:24:38     4d 2h ago              601             lat:50.3875761667       lon:-99.0839551667  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-11T00-24-38' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-09T02-49-16  2026-10-09 02:49:16     1d 9h ago             1748             lat:50.387583   lon:-99.0839095  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-09T02-49-16' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-05T05-38-39  2026-10-05 05:38:39     18h 19m ago            956             lat:50.3875681667       lon:-99.0839765  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-05T05-38-39' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-05T00-51-01  2026-10-05 00:51:01     23h 6m ago            1891             lat:50.3875681667       lon:-99.0838993333  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-05T00-51-01' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-05T00-48-33  2026-10-05 00:48:33     23h 9m ago            2341             lat:55.5094026  lon:-98.1025161  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-05T00-48-33' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-10-05T00-48-17  2026-10-05 00:48:17     23h 9m ago               5             lat:50.387576   lon:-99.083876  *** NEW
+seq_2026-10-05T00-44-58  2026-10-05 00:44:58     23h 12m ago              4             lat:55.5092586  lon:-98.1024341  *** NEW
+seq_2026-10-04T10-33-04  2026-10-04 10:33:04     1d 13h ago             655             lat:-44.9736837 lon:169.2414504  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-04T10-33-04' --unit_text $'UNIT 16\nŌTĀKOU, NZ'
+seq_2026-10-04T03-48-33  2026-10-04 03:48:33     1d 20h ago             392             lat:55.2642594  lon:-98.290085  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-04T03-48-33' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-10-04T00-32-04  2026-10-04 00:32:04     1d 23h ago               6             lat:55.2633927  lon:-98.2862591  *** NEW
+seq_2026-10-04T07-19-46  2026-10-04 07:19:46     8h 53m ago             519             lat:50.3875216667       lon:-99.0838913333  *** ABORT CAP LEFT ON
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-04T07-19-46' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-04T01-34-57  2026-10-04 01:34:57     14h 38m ago            835             lat:50.387487   lon:-99.0839201667  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-04T01-34-57' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-10-03T03-05-53  2026-10-03 03:05:53     1d 13h ago            1657             lat:55.8145649  lon:-97.9248484  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-03T03-05-53' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-10-03T02-50-15  2026-10-03 02:50:15     1d 13h ago             172             lat:55.8143032  lon:-97.9243142  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-10-03T02-50-15' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-22T01-38-58  2026-09-22 01:38:58     12d 14h ago            478             lat:55.8145408  lon:-97.9247799  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-22T01-38-58' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_0000-00-01T00-00-01_00000004 thomspon ***complete
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_0000-00-01T00-00-01_00000004' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-25T09-04-12  2026-09-25 09:04:12     16h 50m ago            286             lat:50.3876071667       lon:-99.0839528333  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-25T09-04-12' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-25T02-56-01  2026-09-25 02:56:01     22h 58m ago           2365             lat:50.387507   lon:-99.0839895  *** UPLOADED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-25T02-56-01' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-17T01-54-37  2026-09-17 01:54:37     6d 17h ago             666             lat:55.8145963  lon:-97.9248072  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-17T01-54-37' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-17T02-11-42  2026-09-17 02:11:42     17h 37m ago           2206             lat:50.387556   lon:-99.0839778333  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-17T02-11-42' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-16T03-02-07  2026-09-16 03:02:07     1d 16h ago             362             lat:50.42295    lon:-99.0612946667  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-16T03-02-07' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-16T02-27-42  2026-09-16 02:27:42     1d 17h ago             782             lat:55.8145718  lon:-97.9248133  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-16T02-27-42' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-16T02-25-55  2026-09-16 02:25:55     1d 17h ago              20             lat:55.8145726  lon:-97.924795  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-16T02-25-55' --unit_text $'UNITs 14\nTHOMPSON, MB'
+seq_2026-09-16T02-21-14  2026-09-16 02:21:14     1d 17h ago             112             lat:50.4245236667       lon:-99.064199  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-16T02-21-14' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-16T02-18-43  2026-09-16 02:18:43     1d 17h ago              13             lat:50.424513   lon:-99.0641566667  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-16T02-18-43' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-16T02-07-43  2026-09-16 02:07:43     1d 17h ago              77             lat:55.8145166  lon:-97.9247313  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-16T02-07-43' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-14T05-43-44  2026-09-14 05:43:44     3d 14h ago               0     None  *** SHORT
+seq_2026-09-14T04-55-15  2026-09-14 04:55:15     3d 14h ago              78             lat:50.4740611667       lon:-98.5715806667  *** SHORT
+seq_2026-09-14T02-20-42  2026-09-14 02:20:42     3d 17h ago            1310             lat:55.8145942  lon:-97.9247517  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-14T02-20-42' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-14T02-02-45  2026-09-14 02:02:45     3d 17h ago            1124             lat:50.4740198333       lon:-98.5715656667  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-14T02-02-45' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-14T01-54-54  2026-09-14 01:54:54     3d 17h ago             170             lat:55.8145591  lon:-97.9247297  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-14T01-54-54' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-14T01-53-26  2026-09-14 01:53:26     3d 17h ago              11             lat:55.8145658  lon:-97.9247103  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-14T01-53-26' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-13T03-06-47  2026-09-13 03:06:47     4d 16h ago             872             lat:50.3875448333       lon:-99.0839203333  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-13T03-06-47' --unit_text $'UNIT 14\nTHOMPSON, MB'
+
+
+seq_2026-09-10T04-04-14  2026-09-10 04:04:14     2d 9h ago               18             lat:55.8146044  lon:-97.9248033  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-10T04-04-14' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-10T03-24-41  2026-09-10 03:24:41     2d 9h ago              379             lat:55.8145836  lon:-97.9247829  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-10T03-24-41' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-10T02-57-44  2026-09-10 02:57:44     2d 10h ago             310             lat:55.8146225  lon:-97.9247859  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-10T02-57-44' --unit_text $'UNIT 14\nTHOMPSON, MB'
+seq_2026-09-10T02-26-20  2026-09-10 02:26:20     2d 10h ago             565             lat:50.3875585  lon:-99.0839063333  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-10T02-26-20' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-10T02-25-57  2026-09-10 02:25:57     2d 10h ago              60             lat:55.8146102  lon:-97.9247887  *** SHORT
+seq_2026-09-10T02-23-48  2026-09-10 02:23:48     2d 10h ago               4             lat:55.8146344  lon:-97.9247871  *** SHORT
+seq_2026-09-10T02-18-54  2026-09-10 02:18:54     2d 11h ago               6             lat:55.8146896  lon:-97.924821  *** SHORT
+seq_2026-09-08T09-13-37  2026-09-08 09:13:37     4d 4h ago              243             lat:50.3875223333       lon:-99.0839278333  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-08T09-13-37' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-08T05-18-28  2026-09-08 05:18:28     4d 8h ago              357             lat:50.3875753333       lon:-99.0839923333  *** PROCESSED
+python process_captured_sequence.py --gamma 1.0 --contrast 1.0 --path '/Volumes/T7 Shield/AurorEye/seq_2026-09-08T05-18-28' --unit_text $'UNIT 15\nNEAR PLUMAS, MB'
+seq_2026-09-07T08-45-07  2026-09-07 08:45:07     3h 49m ago            1223             lat:55.7871509  lon:-97.8623184  *** COMPLETE
+seq_2026-09-05T05-13-24  2026-09-05 05:13:24     10h 42m ago            272             lat:50.3731421667       lon:-99.1010403333  *** COMPLETE
+seq_2026-09-05T02-38-39  2026-09-05 02:38:39     13h 17m ago            154             lat:50.4197251667       lon:-99.0631183333  *** COMPLETE
+seq_2026-09-03T03-46-08  2026-09-03 03:46:08     2d 12h ago             117             lat:50.387508   lon:-99.0839676667  *** PROCESSED
+seq_2026-09-03T03-19-15  2026-09-03 03:19:15     2d 12h ago             601             lat:55.814606   lon:-97.9247783  *** COMPLETE
+seq_2026-08-31T03-15-25  2026-08-31 03:15:25     2d 13h ago             795             lat:55.8145844  lon:-97.9248166  *** COMPLETE
+seq_2026-08-30T03-00-25  2026-08-30 03:00:25     3d 13h ago            1318             lat:55.0514822  lon:-98.5204163  *** COMPLETE
+seq_2026-08-21T03-09-08  2026-08-21 03:09:08     3d 13h ago             551             lat:50.387559   lon:-99.0839553333  *** COMPLETE
+seq_2026-08-20T03-55-58  2026-08-20 03:55:58     4d 13h ago             635             lat:50.3875668333       lon:-99.0839678333  *** COMPLETE
+seq_2026-08-20T03-47-22  2026-08-20 03:47:22     4d 13h ago            1708             lat:55.8146216  lon:-97.9248267  *** COMPLETE
+seq_2026-08-19T06-57-09  2026-08-19 06:57:09     17h 2m ago             741             lat:50.3875115  lon:-99.0839615               *** COMPLETE
+seq_2026-08-19T03-52-28  2026-08-19 03:52:28     20h 6m ago             646             lat:50.38757    lon:-99.0839363333            *** COMPLETE
+seq_2026-08-18T02-42-51  2026-08-18 02:42:51     11h 24m ago           1450             lat:50.3875428333       lon:-99.0839145       *** COMPLETE
+seq_2026-08-13T09-09-32  2026-08-13 09:09:32     5d 4h ago               96             lat:50.6590693333       lon:-99.9690151667    *** COMPLETE
+seq_2026-08-13T08-55-35  2026-08-13 08:55:35     5d 5h ago               28             lat:50.6590695  lon:-99.9690548333            *** COMPLETE
+seq_2026-08-09T03-59-06  2026-08-09 03:59:06     9d 10h ago             904             lat:55.8145789  lon:-97.9246627               *** COMPLETE
+seq_2026-08-09T02-31-50  2026-08-09 02:31:50     1d 10h ago            1815             lat:50.3875271667       lon:-99.083912        *** COMPLETE
+seq_2026-08-03T05-47-29  2026-08-03 05:47:29     1d 16h ago             514             lat:55.4927486  lon:-98.0252284               *** COMPLETE
+seq_2026-08-03T05-30-09  2026-08-03 05:30:09     1d 16h ago            2135             lat:50.387594   lon:-99.0839595               *** COMPLETE
+seq_2026-08-03T03-45-52  2026-08-03 03:45:52     1d 18h ago            1138             lat:55.4857141  lon:-98.0242842               *** COMPLETE
+seq_2026-08-03T03-30-07  2026-08-03 03:30:07     1d 18h ago             712             lat:50.4175493333       lon:-99.0723236667    *** COMPLETE
+seq_2026-08-03T03-27-59  2026-08-03 03:27:59     1d 18h ago              40             lat:55.4857258  lon:-98.0242471  *** SKIPPED
+seq_2026-08-03T03-16-13  2026-08-03 03:16:13     1d 18h ago              47             lat:50.4193655  lon:-99.0889508333  *** SKIPPED
+seq_2026-07-29T04-46-28  2026-07-29 04:46:28     6d 17h ago             757             lat:55.7812851  lon:-97.8543154  *** COMPLETE
+seq_2026-07-24T03-55-42  2026-07-24 03:55:42     11d 17h ago           1236             lat:50.3875068333       lon:-99.0838805  *** COMPLETE
+seq_2026-07-22T05-11-57  2026-07-22 05:11:57     9d 6h ago              777             lat:55.7812332  lon:-97.8540772  *** PROCESSED
+seq_2026-07-15T05-08-39  2026-07-15 05:08:39     19h 22m ago           1560             lat:55.7813772  lon:-97.85335  *** COMPLETE
+seq_2026-07-14T06-54-12  2026-07-14 06:54:12     1d 17h ago             578             lat:50.3875226667       lon:-99.083946  *** NEW
+seq_2026-07-14T06-46-02  2026-07-14 06:46:02     1d 17h ago              15             lat:50.3875428333       lon:-99.0838525  *** NEW
+seq_2026-07-14T05-53-28  2026-07-14 05:53:28     1d 18h ago             130             lat:50.4322256667       lon:-99.076737  *** NEW
+seq_2026-07-10T15-35-09  2026-07-10 15:35:09     5d 8h ago                2             lat:-44.9736868 lon:169.2413502  *** IGNORF
+seq_2026-07-10T05-53-35  2026-07-10 05:53:35     5d 18h ago            3495             lat:-44.9737479 lon:169.2413508  *** DOWNLOADED, need autorotate correction

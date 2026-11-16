@@ -4,10 +4,10 @@
    that Python cannot see from its side:
 
    1. forward() in the page -- the map that turns raster pixels into overlay
-      pixels for the detections and the solved pairs -- reproduces
+      pixels for the pins the user places -- reproduces
       session.Alignment.forward for a table of transforms computed in Python;
    2. the real event handlers turn a drag, the rotation slider, the mirror box
-      and the arrow keys into exactly the alignment the solver is fed;
+      and the arrow keys into exactly the alignment the server is sent;
    3. the frame picker really posts the chosen file (from the file input and
       from a drop on the stage), a server with no frame leaves the stage as
       an invitation rather than an error, and the request that follows an open
@@ -25,7 +25,20 @@
       they share the star labels' collision rule, and -- because they are not in
       the list the hit test walks -- a click on one picks nothing.  A pin can
       also be taken out singly, by clicking the circle that carries it (live
-      mode or not) or the ✕ in the readout, and the survivors are refitted.
+      mode or not) or the ✕ in the readout, and the survivors are refitted;
+   6. the photograph is shown, not enhanced: no filter until the gamma slider asks
+      for one, the one control is the exponent of a single SVG transfer on all
+      three channels (a fragment of this page -- nothing fetched, nothing sent to
+      the server), flat puts it back, the rings are never dimmed with it, and a
+      zoom is measured against the photograph's own pixels rather than the window
+      (that is what lets the browser's zoom reach real detail);
+   7. the corrected preview: pressing the button asks the server to resample the
+      frame onto an ideal equiangular lens (a *render*, so it happens then and not
+      on load), the answer is put on the stage at the photograph's own size so the
+      comparison is a flash and not a jump, the overlay is asked for through that
+      same ideal lens -- on the photograph the rings must mark the photograph's
+      own lens -- and nothing can be pinned, dropped or refitted on pixels that
+      are no longer the photograph's.
 
    Usage: node check_page.js <index.html> <cases.json>
 */
@@ -76,6 +89,10 @@ function makeNode(id) {
     hidden: false,
     src: "",
     clicks: 0,
+    // The SVG transfer's exponent lives here.
+    attrs: {},
+    setAttribute(name, value) { node.attrs[name] = String(value); },
+    getAttribute(name) { return name in node.attrs ? node.attrs[name] : null; },
     addEventListener(type, handler) {
       (node.listeners[type] = node.listeners[type] || []).push(handler);
     },
@@ -106,8 +123,18 @@ function makeNode(id) {
 }
 
 const nodes = {};
+/* The ids the markup actually declares.  A stub that invents a node for any id
+   asked of it cannot tell a working getElementById from a broken one -- a lookup
+   of an id the page never carries would come back as a node, the handler would
+   write to it, and the check would pass while the control did nothing in a real
+   browser.  Anything the page looks up has to be in the page. */
+const declaredIds = new Set(
+  [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]));
 const documentStub = {
-  getElementById: (id) => (nodes[id] = nodes[id] || makeNode(id)),
+  getElementById(id) {
+    if (!declaredIds.has(id)) return null;
+    return nodes[id] || (nodes[id] = makeNode(id));
+  },
   activeElement: null,
 };
 const windowListeners = {};
@@ -143,6 +170,22 @@ const heldLive = [];
 // When liveHtml is on, /api/live answers with the HTML error page an older
 // server (one without the endpoint) would send.
 let liveHtml = false;
+// /corrected.png answers with a PNG-shaped blob; set correctedReply to stage a
+// refusal (the status and JSON body the server would send) instead.
+let correctedReply = null;
+// URL.createObjectURL is what the page turns the corrected picture into, and the
+// only reason the page needs URL at all -- URLSearchParams stays Node's own.
+const objectUrls = [];
+const urlStub = {
+  createObjectURL(blob) {
+    objectUrls.push(blob);
+    return `blob:corrected/${objectUrls.length}`;
+  },
+  revokeObjectURL(url) {
+    const index = objectUrls.findIndex((_, at) => `blob:corrected/${at + 1}` === url);
+    if (index >= 0) objectUrls[index] = null;
+  },
+};
 /* A reply as the browser hands it over: the status, and the body twice -- as
    text, which is what the page reads, and as JSON, which throws on an HTML page
    the way the real Response does. */
@@ -157,6 +200,10 @@ const stubResponse = (status, statusText, body) => ({
     }
     return body;
   },
+  // An image answer: the page only hands it to URL.createObjectURL, which is
+  // stubbed below, so its contents do not matter here -- that the *bytes* come
+  // back as a blob and not as JSON is the point.
+  blob: async () => ({ type: "image/png", size: 1024 }),
 });
 const reply = (status, body) => Promise.resolve(stubResponse(status, "", body));
 const replyHtml = (status, statusText, html) => Promise.resolve(stubResponse(status, statusText, html));
@@ -165,7 +212,6 @@ const fetchStub = (url, init) => {
   if (url === "/api/open") {
     return reply(200, { name: "night.jpg", width: 1400, height: 1400 });
   }
-  if (url.startsWith("/api/detections")) return reply(200, { stars: [], count: 0 });
   if (url === "/api/live") {
     if (liveHtml) {
       return replyHtml(404, "NOT FOUND",
@@ -196,18 +242,23 @@ const fetchStub = (url, init) => {
     if (!liveDefer) return reply(200, answer);
     return new Promise((resolve) => heldLive.push({ answer, resolve }));
   }
+  if (url.startsWith("/corrected.png")) {
+    if (correctedReply) return reply(correctedReply.status, correctedReply.body);
+    return reply(200, { image: "corrected" });
+  }
   if (sessionReply) return reply(sessionReply.status, sessionReply.body);
   return Promise.reject(new Error("offline"));
 };
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-const page = new Function("window", "document", "fetch",
+const page = new Function("window", "document", "fetch", "URL",
   source + "\nreturn { state, forward, inverse, draw, applyTransform, ringRadius, openFrame, loadSession,"
-    + " sendPins, renderReadout, syncLive };" )(
-  windowStub, documentStub, fetchStub);
+    + " sendPins, renderReadout, syncLive, requestPayload, syncProjectionRows,"
+    + " resize, applyReveal, applyZoom, setSaveState, setCorrected };" )(
+  windowStub, documentStub, fetchStub, urlStub);
 
 /* ---- 1. the raster -> overlay map ---- */
-page.state.session = { image: spec.image, overlay: null, detections: [] };
+page.state.session = { image: spec.image, overlay: null };
 page.state.cssW = spec.stage_css.width;
 page.state.cssH = spec.stage_css.height;
 page.state.scale = spec.stage_css.scale;
@@ -313,12 +364,38 @@ check("reset clears the alignment",
   page.state.align.roll_deg === 0 && page.state.align.mirrored === false &&
     page.state.align.dx === 0 && page.state.align.dy === 0);
 
+/* ---- 2b. the overlay model: the measured lens is the default ---- */
+/* The overlay is drawn with the lens the rig measures, so the panel has to be
+   able to say what that lens is and the request has to carry it.  The analytic
+   families are still there, and their field of view replaces those fields. */
+documentStub.getElementById("projection").value = "fisheye";
+documentStub.getElementById("focal").value = "582.3";
+documentStub.getElementById("kTerms").value = "-0.10455, -0.0008, 0";
+page.syncProjectionRows();
+const model = page.requestPayload();
+check("the measured lens is what the request carries",
+  model.projection === "fisheye" && model.focal_px === 582.3 &&
+    model.coefficients.length === 3 && Math.abs(model.coefficients[0] + 0.10455) < 1e-9 &&
+    documentStub.getElementById("focalRow").hidden === false &&
+    documentStub.getElementById("fovRow").hidden === true,
+  JSON.stringify(model));
+documentStub.getElementById("projection").value = "equidistant";
+page.syncProjectionRows();
+check("an analytic projection hides the lens fields",
+  documentStub.getElementById("focalRow").hidden === true &&
+    documentStub.getElementById("kRow").hidden === true &&
+    documentStub.getElementById("fovRow").hidden === false,
+  `focal=${documentStub.getElementById("focalRow").hidden}`);
+documentStub.getElementById("projection").value = "fisheye";
+page.syncProjectionRows();
+
 /* ---- 3. the draw path ---- */
-const counts = { arc: 0, strokeText: 0, fillText: 0, moveTo: 0, lineTo: 0, fill: 0 };
+const counts = { arc: 0, strokeText: 0, fillText: 0, moveTo: 0, lineTo: 0, fill: 0, moves: [] };
 const countingCtx = {
   setTransform() {}, clearRect() {}, save() {}, restore() {}, beginPath() {},
   closePath() {},
-  moveTo() { counts.moveTo += 1; }, lineTo() { counts.lineTo += 1; },
+  moveTo(x, y) { counts.moveTo += 1; counts.moves.push([x, y]); },
+  lineTo() { counts.lineTo += 1; },
   stroke() {}, fill() { counts.fill += 1; }, setLineDash() {},
   arc() { counts.arc += 1; },
   fillText() { counts.fillText += 1; },
@@ -331,17 +408,21 @@ const overlay = {
   theta_edge_deg: 90,
   radius_px: 691.4,
   centre: { x: 700, y: 700 },
+  // A tilted or off-zenith camera draws a zenith-distance ring as a curve, so
+  // the grid arrives as one polyline per ring and per meridian -- and the zenith
+  // (where the cross goes) is a separate point from the optical axis.
+  zenith: { x: 660, y: 720 },
   grid: {
     rings: [
-      { theta_deg: 30, radius_px: 230.5 },
-      { theta_deg: 60, radius_px: 460.9 },
-      { theta_deg: 90, radius_px: 691.4 },
+      { theta_deg: 30, points: [[700, 470], [930, 700], [700, 930]] },
+      { theta_deg: 60, points: [[700, 240], [1160, 700], [700, 1160]] },
+      { theta_deg: 90, points: [[700, 9], [1391, 700], [700, 1391]] },
     ],
     meridians: [
-      { az_deg: 0, label: "N", x: 700, y: 8.6 },
-      { az_deg: 90, label: "E", x: 8.6, y: 700 },
-      { az_deg: 180, label: "S", x: 700, y: 1391.4 },
-      { az_deg: 270, label: "W", x: 1391.4, y: 700 },
+      { az_deg: 0, label: "N", points: [[700, 9], [700, 350], [700, 700]], label_x: 700, label_y: 8.6 },
+      { az_deg: 90, label: "E", points: [[8.6, 700], [350, 700], [700, 700]], label_x: 8.6, label_y: 700 },
+      { az_deg: 180, label: "S", points: [[700, 1391.4], [700, 1050], [700, 700]], label_x: 700, label_y: 1391.4 },
+      { az_deg: 270, label: "W", points: [[1391.4, 700], [1050, 700], [700, 700]], label_x: 1391.4, label_y: 700 },
     ],
   },
   stars: [],
@@ -365,10 +446,12 @@ const drawAndCount = (showGrid, starList) => {
   counts.moveTo = 0;
   counts.lineTo = 0;
   counts.fill = 0;
+  counts.moves = [];
   page.draw();
   return {
     arc: counts.arc, strokeText: counts.strokeText, fillText: counts.fillText,
     moveTo: counts.moveTo, lineTo: counts.lineTo, fill: counts.fill,
+    moves: counts.moves.slice(),
   };
 };
 
@@ -378,9 +461,19 @@ const bare = drawAndCount(true, []);
 const rings = overlay.grid.rings.length;
 const meridians = overlay.grid.meridians.length;
 
-// the rim and every grid ring are stroked twice: a dark halo, then the line
-check("draw() strokes every grid ring (halo + line)",
-  gridOn.arc - gridOff.arc === 2 * rings, `on=${gridOn.arc} off=${gridOff.arc}`);
+// every grid curve is stroked twice -- a dark halo, then the line -- and each
+// pass is one moveTo and one lineTo per segment of the polyline
+const curves = overlay.grid.rings.concat(overlay.grid.meridians);
+const curveMoves = 2 * curves.length;
+const curveLines = 2 * curves.reduce((total, curve) => total + curve.points.length - 1, 0);
+check("draw() strokes every grid curve (halo + line)",
+  gridOn.moveTo - gridOff.moveTo === curveMoves &&
+    gridOn.lineTo - gridOff.lineTo === curveLines,
+  `moves=${gridOn.moveTo - gridOff.moveTo}/${curveMoves} lines=${gridOn.lineTo - gridOff.lineTo}/${curveLines}`);
+check("draw() crosses the zenith, not the optical axis",
+  bare.moves.some(([x, y]) => Math.abs(x - (overlay.zenith.x * 0.5 - 16)) < 0.01 &&
+    Math.abs(y - overlay.zenith.y * 0.5) < 0.01),
+  JSON.stringify(bare.moves.slice(0, 3)));
 check("draw() strokes a rim plus one circle per star",
   gridOff.arc === 2 + stars.length, `arcs=${gridOff.arc}`);
 check("draw() labels each cardinal point once",
@@ -424,7 +517,10 @@ page.state.showAids = true;
    shows an invitation rather than an error. */
 (async () => {
   const sessionPayload = {
-    image: { url: "/frame.jpg", name: "night.jpg", width: 1400, height: 1400 },
+    image: {
+      url: "/frame.jpg", name: "night.jpg", width: 1400, height: 1400,
+      frame_width: 2800, frame_height: 2800,
+    },
     meta: { camera: "SONY ZV-E10", lens: "Meike 6.5 mm", exposure_s: 8, iso: 800 },
     time: {
       captured_utc: "2026-01-18T09:15:17", latitude: 64.5724, longitude: -149.262,
@@ -437,9 +533,10 @@ page.state.showAids = true;
     overlay: null,
     overlay_error: "no time or place",
     alignment: {},
-    seed_camera: null,
+    camera: null,
+    lens_source: "seed",
     transform_check_px: null,
-    counts: { detections: 0, point_like: 0, catalogue: 0 },
+    counts: { catalogue: 0 },
     projections: ["equidistant", "equisolid"],
     warnings: [],
     calibration_path: "/tmp/night.json",
@@ -475,6 +572,9 @@ page.state.showAids = true;
     page.state.session !== null && !stageNode.classList.contains("empty") &&
       frameName() === "night.jpg",
     `frame=${frameName()} empty=${stageNode.classList.contains("empty")}`);
+  check("the header reports the file's own size, not just the raster",
+    documentStub.getElementById("frameSize").textContent === "2800×2800 · raster 1400",
+    documentStub.getElementById("frameSize").textContent);
   // The status line is the only place the user looks, so a missing overlay has
   // to say *why* there, not just that it is missing.
   check("a frame without an overlay says why in the status bar",
@@ -571,10 +671,10 @@ page.state.showAids = true;
         band: [],
       },
     },
-    seed_camera: { roll_deg: 0, centre_px: { x: 700, y: 700 }, mirrored: false },
+    camera: { roll_deg: 0, centre_px: { x: 700, y: 700 }, mirrored: false },
+    lens_source: "seed",
     transform_check_px: 0,
   };
-  page.state.detections = [];
   page.state.ctx = countingCtx;
   page.state.cssW = 700;
   page.state.cssH = 700;
@@ -582,7 +682,6 @@ page.state.showAids = true;
   page.state.align = { roll_deg: 0, mirrored: false, dx: 0, dy: 0 };
   page.state.live = { on: false, pending: null, points: [], rms: null, max: null };
   page.state.showGrid = false;
-  page.state.showDetections = false;
 
   const liveStage = documentStub.getElementById("stage");
   const liveNote = () => documentStub.getElementById("liveNote").textContent;
@@ -623,8 +722,7 @@ page.state.showAids = true;
 
   clickAt(300 * 0.5, 400 * 0.5);                  // on Vega's circle
   check("a click on a circle picks that star",
-    Boolean(page.state.live.pending) && page.state.live.pending.name === "Vega" &&
-      page.state.live.pending.star_x === 300 && page.state.live.pending.star_y === 400,
+    Boolean(page.state.live.pending) && page.state.live.pending.name === "Vega",
     JSON.stringify(page.state.live.pending));
   check("the panel then asks for the star in the photo",
     liveNote().includes("Vega"), liveNote());
@@ -641,13 +739,13 @@ page.state.showAids = true;
   await settle();
   const posted = lastPin();
   const pinBody = posted && posted.body ? JSON.parse(posted.body) : { points: [] };
-  check("the click posts the pair in both frames",
+  check("the click posts the star and the pixel of the photograph it was seen at",
     calls.slice(beforePin).filter((call) => call.url === "/api/live").length === 1 &&
       posted.method === "POST" &&
       pinBody.points.length === 1 &&
       pinBody.points[0].name === "Vega" &&
-      pinBody.points[0].star_x === 300 && pinBody.points[0].star_y === 400 &&
-      pinBody.points[0].x === 500 && pinBody.points[0].y === 300,
+      pinBody.points[0].x === 500 && pinBody.points[0].y === 300 &&
+      !("star_x" in pinBody.points[0]),
     JSON.stringify(pinBody.points));
   check("the transform the refit answers with is the one the photo gets",
     page.state.align.roll_deg === -12.5 && page.state.align.dx === 30 &&
@@ -659,8 +757,10 @@ page.state.showAids = true;
       page.state.live.rms === 3.5 &&
       documentStub.getElementById("readout").innerHTML.includes("Pinned"),
     `points=${page.state.live.points.length} rms=${page.state.live.rms}`);
-  check("a refit invalidates the solve that described the old transform",
-    page.state.solved === null && documentStub.getElementById("save").disabled === true);
+  // A refit that measured no lens leaves nothing to save: the button follows
+  // the lens, not the fact that something was refitted.
+  check("a refit without a lens leaves nothing to save",
+    page.state.live.lens === null && documentStub.getElementById("save").disabled === true);
 
   // moveTo/lineTo per pin: one dashed line out to the circle, then a crosshair
   // on the star where the user put it -- three moves and three lines in total.
@@ -721,10 +821,11 @@ page.state.showAids = true;
   documentStub.getElementById("liveUndo").fire("click", {});
   await settle();
   await settle();
-  check("undoing the last pin needs no refit at all",
-    calls.slice(beforeLast).filter((call) => call.url === "/api/live").length === 0 &&
-      page.state.live.points.length === 0 && page.state.live.rms === null,
-    `points=${page.state.live.points.length} rms=${page.state.live.rms}`);
+  const lastUndo = calls.slice(beforeLast).filter((call) => call.url === "/api/live");
+  check("undoing the last pin tells the server to forget it",
+    lastUndo.length === 1 && JSON.parse(lastUndo[0].body).points.length === 0 &&
+      page.state.live.points.length === 0,
+    `calls=${lastUndo.length} points=${page.state.live.points.length}`);
 
   /* ---- 5c. taking one pin out, from its circle or from the list ---- */
   /* A pin that turns out to be wrong is far more common than a pin that turns
@@ -734,9 +835,9 @@ page.state.showAids = true;
      so the removed pair leaves nothing behind -- and with nothing left nothing
      is posted at all, which is the page's own "forget them". */
   const pinSet = [
-    { name: "Vega", star_x: 300, star_y: 400, x: 500, y: 300, residual_px: 2 },
-    { name: "Altair", star_x: 900, star_y: 420, x: 890, y: 430, residual_px: 1.4 },
-    { name: "Deneb", star_x: 620, star_y: 1000, x: 610, y: 990, residual_px: 1.1 },
+    { name: "Vega", x: 500, y: 300, residual_px: 2 },
+    { name: "Altair", x: 890, y: 430, residual_px: 1.4 },
+    { name: "Deneb", x: 610, y: 990, residual_px: 1.1 },
   ];
   page.state.live.points = pinSet;
   page.state.live.on = false;             // the pins outlive the mode
@@ -778,11 +879,12 @@ page.state.showAids = true;
   });
   await settle();
   await settle();
-  check("removing the last pin needs no refit and clears the lens",
-    calls.slice(beforeEmpty).filter((call) => call.url === "/api/live").length === 0 &&
+  const emptyDrop = calls.slice(beforeEmpty).filter((call) => call.url === "/api/live");
+  check("removing the last pin forgets the pins and clears the lens",
+    emptyDrop.length === 1 && JSON.parse(emptyDrop[0].body).points.length === 0 &&
       page.state.live.points.length === 0 && page.state.live.lens === null &&
-      page.state.live.overlay === null && !page.state.live.pending,
-    `points=${page.state.live.points.length} lens=${page.state.live.lens}`);
+      !page.state.live.pending,
+    `calls=${emptyDrop.length} points=${page.state.live.points.length} lens=${page.state.live.lens}`);
 
   /* ---- 5b. the fourth pin hands over to the lens ---- */
   /* Four pins are the point where the server stops moving the photo and starts
@@ -793,12 +895,12 @@ page.state.showAids = true;
      from -- posting the drawn position instead would make the fifth pin feed the
      fit its own output. */
   const threePins = [
-    { name: "Vega", star_x: 300, star_y: 400, x: 500, y: 300, residual_px: 2 },
-    { name: "Altair", star_x: 900, star_y: 420, x: 890, y: 430, residual_px: 2 },
-    { name: "Deneb", star_x: 620, star_y: 1000, x: 610, y: 990, residual_px: 2 },
+    { name: "Vega", x: 500, y: 300, residual_px: 2 },
+    { name: "Altair", x: 890, y: 430, residual_px: 2 },
+    { name: "Deneb", x: 610, y: 990, residual_px: 2 },
   ];
   const fourPins = threePins.concat([
-    { name: "Polaris", star_x: 1000, star_y: 1050, x: 990, y: 1040, residual_px: 1.1 },
+    { name: "Polaris", x: 990, y: 1040, residual_px: 1.1 },
   ]);
   page.state.live.points = threePins;
   page.state.live.on = true;
@@ -806,9 +908,9 @@ page.state.showAids = true;
   check("three pins say one more star measures the lens",
     liveNote().includes("one more star solves the lens"), liveNote());
 
-  const calibrated = liveStars.map((star) => ({
-    ...star, draw_x: star.x + 6, draw_y: star.y - 4,
-  }));
+  // The calibrated overlay is the same rings where the *camera* puts them: the
+  // server has already done the projection, so x/y is where a ring is drawn.
+  const calibrated = liveStars.map((star) => ({ ...star, x: star.x + 6, y: star.y - 4 }));
   liveReply = {
     alignment: { roll_deg: -10, mirrored: false, dx: 20, dy: -5 },
     residuals: { Vega: 0.9, Altair: 1.4, Deneb: 2.1 },
@@ -853,11 +955,10 @@ page.state.showAids = true;
   check("the circles move onto the calibrated positions",
     drawnAt(306, 396) && !drawnAt(300, 400), JSON.stringify(arcs.slice(-3)));
 
-  // A pin taken against the calibrated overlay still posts the *ideal* position:
-  // the ring is drawn where the calibration puts it, but the pair the server
-  // needs carries the sky position the field angle is read from -- posting the
-  // drawn one would feed the fit its own output and the fifth pin would say
-  // nothing new.
+  // A pin taken against the calibrated overlay posts the same two things as any
+  // other: the star's name and the pixel of the photograph.  Neither of them is a
+  // position the overlay produced, which is what stops the fit feeding on its own
+  // output.
   page.state.live.on = true;
   page.state.live.pending = null;
   // Vega carries a pin from the fourth star, and a pinned circle is now the
@@ -873,24 +974,32 @@ page.state.showAids = true;
   await settle();
   const fifth = calls.slice(beforeFifth).filter((call) => call.url === "/api/live");
   const fifthBody = fifth.length ? JSON.parse(fifth[0].body) : { points: [] };
-  check("a pin on the calibrated overlay still posts the ideal position",
-    Boolean(picked) && picked.name === "Vega" && picked.star_x === 300 && picked.star_y === 400 &&
+  // The click lands on a stage pixel and the pin is the photograph pixel that
+  // lands there -- under the transform the photo has *now*, which the previous
+  // refit set.  Nothing about the ring's drawn position goes on the wire.
+  const wantFifth = page.inverse(250 / 0.5, 150 / 0.5);
+  check("a pin on the calibrated overlay posts the name and the photo pixel",
+    Boolean(picked) && picked.name === "Vega" && !("star_x" in picked) &&
       fifthBody.points.length === 4 &&
-      fifthBody.points.some((point) => point.name === "Vega" && point.star_x === 300 && point.star_y === 400),
-    `picked=${JSON.stringify(picked)} posted=${JSON.stringify(fifthBody.points.map((p) => [p.name, p.star_x]))}`);
+      fifthBody.points.some((point) => point.name === "Vega" &&
+        !("star_x" in point) &&
+        Math.abs(point.x - wantFifth.x) < 1e-9 && Math.abs(point.y - wantFifth.y) < 1e-9),
+    `picked=${JSON.stringify(picked)} posted=${JSON.stringify(fifthBody.points)}`);
 
-  // The series stops at theta^5.  A sixth star is another equation for the same
-  // five unknowns, and the readout repeats the server's note about it rather
-  // than promising a coefficient that will never appear.
+  // When the fit is capped -- every odd term the series carries is already in
+  // play -- another star is another equation for the same unknowns, and the
+  // readout repeats the server's note about it rather than promising a
+  // coefficient that will never appear.
   const sixPins = fourPins.concat([
-    { name: "Sirius", star_x: 620, star_y: 300, x: 615, y: 305, residual_px: 0.8 },
+    { name: "Sirius", x: 615, y: 305, residual_px: 0.8 },
   ]);
   const capped = {
-    pins: 6, num_coefficients: 2, focal_px: 512.3, coefficients: [-0.0538, 0.0021],
+    pins: 8, num_coefficients: 4, focal_px: 512.3,
+    coefficients: [-0.0538, 0.0021, -0.00031, 0.00002],
     centre_px: { x: 678.5, y: 707.9 }, covers_sigma: 0.85,
     lens: { theta_sigma_edge_deg: 88.62 },
-    notes: ["6 pins, but the fit stops at the theta^5 term: the stars past the fifth"
-      + " over-determine the same five unknowns rather than adding coefficients"],
+    notes: ["8 pins, but the fit stops at the theta^9 term: stars past the first 7"
+      + " over-determine the same unknowns rather than adding coefficients"],
   };
   liveReply = {
     alignment: { roll_deg: -10, mirrored: false, dx: 20, dy: -5 },
@@ -907,9 +1016,9 @@ page.state.showAids = true;
   };
   await page.sendPins(sixPins);
   await settle();
-  check("a sixth star adds equations, not a coefficient",
-    Boolean(page.state.live.lens) && page.state.live.lens.num_coefficients === 2 &&
-      liveNote().includes("2 k terms") &&
+  check("a star past the cap adds equations, not a coefficient",
+    Boolean(page.state.live.lens) && page.state.live.lens.num_coefficients === 4 &&
+      liveNote().includes("4 k terms") &&
       documentStub.getElementById("readout").innerHTML.includes("over-determine"),
     `note=${liveNote()} readout=${documentStub.getElementById("readout").innerHTML.slice(0, 160)}`);
 
@@ -1069,6 +1178,206 @@ page.state.showAids = true;
       !stale.includes("Unexpected token"),
     stale);
   liveHtml = false;
+
+  /* ---- 6. the photograph is shown, not enhanced ---- */
+  // The server hands over the file itself, full size and with no tone curve: a
+  // night frame's lift is a *view*, so it is one plain CSS filter on the picture,
+  // flat until asked for, and the rings -- which are the things being measured
+  // against -- must never pass through it.  Nothing about it is sent anywhere.
+  page.state.session = {
+    image: { width: 1400, height: 1400, frame_width: 4000, frame_height: 4000 },
+    overlay: null,
+  };
+  const frameNode = documentStub.getElementById("frame");
+  const channel = (id) => documentStub.getElementById(id);
+  page.state.reveal = { gamma: 1 };
+  page.applyReveal();
+  check("the photograph starts flat: no filter at all",
+    !frameNode.style.filter, `filter=${frameNode.style.filter}`);
+  // The transfer only works if the page can find its channels and if it transfers
+  // sRGB: getElementById on an id the markup does not carry returns null, and a
+  // transfer over linear light would turn gamma 0.45 into a blown-out frame.
+  check("the gamma transfer's channels carry the ids the page looks up",
+    ["feFuncR", "feFuncG", "feFuncB"].every((id) =>
+      new RegExp(`<${id} id="${id}" type="gamma"`).test(html)),
+    ["feFuncR", "feFuncG", "feFuncB"].join(" "));
+  check("the transfer is over sRGB, not linear light",
+    /<filter id="reveal" color-interpolation-filters="sRGB">/.test(html), "");
+
+  const wireBefore = calls.length;
+  documentStub.getElementById("gamma").fire("input", { target: { value: "0.45" } });
+  check("the slider is the exponent of one transfer, on all three channels",
+    frameNode.style.filter === "url(#reveal)" &&
+      channel("feFuncR").attrs.exponent === "0.45" &&
+      channel("feFuncG").attrs.exponent === "0.45" &&
+      channel("feFuncB").attrs.exponent === "0.45",
+    `filter=${frameNode.style.filter} g=${JSON.stringify(channel("feFuncG").attrs)}`);
+  check("the filter is a fragment of this page, nothing to fetch",
+    frameNode.style.filter === "url(#reveal)" && html.includes('id="reveal"'),
+    `filter=${frameNode.style.filter}`);
+  check("the lift never reaches the server", calls.length === wireBefore,
+    `requests=${calls.length - wireBefore}`);
+  check("the rings are not dimmed with the photograph",
+    !documentStub.getElementById("overlay").style.filter,
+    `overlay filter=${documentStub.getElementById("overlay").style.filter}`);
+  check("the slider reports what it is doing",
+    documentStub.getElementById("gammaOut").textContent === "0.45",
+    documentStub.getElementById("gammaOut").textContent);
+
+  documentStub.getElementById("flat").fire("click", {});
+  check("flat goes back to the file as written, slider included",
+    page.state.reveal.gamma === 1 && !frameNode.style.filter &&
+      documentStub.getElementById("gamma").value === "1" &&
+      channel("feFuncG").attrs.exponent === "1",
+    `reveal=${JSON.stringify(page.state.reveal)} filter=${frameNode.style.filter}`);
+
+  // Zoom is measured against the photograph, not against the window: 100 % is one
+  // css pixel per pixel of the file, which is the only size at which the
+  // browser's own zoom has real detail to magnify.  Fit takes back whatever the
+  // browser zoom hands out, so leaning in there would enlarge a downscaled copy.
+  documentStub.getElementById("zoom").fire("change", { target: { value: "1" } });
+  check("100 % sizes the stage by the photograph's own pixels",
+    page.state.cssW === 4000 && page.state.cssH === 4000 &&
+      Math.abs(page.state.scale - 4000 / 1400) < 1e-9,
+    `css=${page.state.cssW}x${page.state.cssH} scale=${page.state.scale}`);
+  documentStub.getElementById("zoom").fire("change", { target: { value: "2" } });
+  const overlayNode = documentStub.getElementById("overlay");
+  check("a zoomed stage cannot ask for an unreasonable canvas",
+    page.state.cssW === 8000 && overlayNode.width <= 4096 && overlayNode.height <= 4096,
+    `css=${page.state.cssW} canvas=${overlayNode.width}x${overlayNode.height}`);
+  documentStub.getElementById("zoom").fire("change", { target: { value: "fit" } });
+  check("fit hands the stage back to the window",
+    page.state.zoom === null, `zoom=${page.state.zoom}`);
+
+  /* ---- 7. the corrected preview ---- */
+  /* The stage can also show the frame resampled onto an ideal equiangular lens.
+     Four statements: the picture is *rendered* by the server when the button is
+     pressed (not linked, not on page load), it arrives at the photograph's own
+     size so the swap is a flash comparison rather than a jump, the overlay is
+     asked for through the same ideal lens -- on the photograph the rings have to
+     mark the photograph's own lens -- and nothing can be pinned on pixels that
+     are no longer the photograph's. */
+  page.state.align = { roll_deg: 0, mirrored: false, dx: 0, dy: 0 };
+  page.state.overlayAlign = { roll_deg: 0, mirrored: false, dx: 0, dy: 0 };
+  // The way back rebuilds the full session query, so the field of view has to
+  // read like a filled-in field rather than like a stub's ``undefined``.
+  documentStub.getElementById("fov").value = "180";
+  page.state.live = {
+    ...page.state.live, on: false, pending: null, points: [], overlay: null, lens: null,
+  };
+  const withOverlay = {
+    ...sessionPayload,
+    image: { url: "/frame.jpg", name: "night.jpg", width: 1400, height: 1400,
+             frame_width: 2800, frame_height: 2800 },
+    overlay: {
+      calibrated: true, count: 1, mag_limit: 4.5, projection: "fisheye",
+      radius_px: 690, theta_edge_deg: 98.0, fov_deg: 195.9,
+      centre: { x: 700, y: 700 }, zenith: { x: 700, y: 700 },
+      grid: { rings: [], meridians: [] },
+      stars: [{ name: "Vega", x: 700, y: 700, vmag: 0.5, alt_deg: 80, theta_deg: 10 }],
+      aids: null,
+    },
+    overlay_error: null,
+    lens_source: "pins",
+    corrected: { url: "/corrected.png", active: false, projection: "equiangular" },
+  };
+  const correctedButton = documentStub.getElementById("corrected");
+  page.state.session = { ...withOverlay, lens_source: "seed" };
+  page.setSaveState();
+  check("the corrected button waits for a measured lens",
+    correctedButton.disabled === true, `disabled=${correctedButton.disabled}`);
+
+  page.state.session = withOverlay;
+  sessionReply = { status: 200, body: withOverlay };
+  page.setSaveState();
+  check("a measured lens is what the correction needs, so it enables the button",
+    correctedButton.disabled === false &&
+      correctedButton.textContent === "view corrected image",
+    `disabled=${correctedButton.disabled} label=${correctedButton.textContent}`);
+
+  // A stage of a known size: the swap must not change it, and the hit test below
+  // is css pixels against raster pixels.
+  page.state.zoom = 1;
+  page.applyZoom();
+  const stageBefore = `${page.state.cssW}x${page.state.cssH}`;
+  const wireBeforeCorrected = calls.length;
+  correctedButton.fire("click", {});
+  await settle();
+  await settle();
+  const correctedCalls = calls.slice(wireBeforeCorrected);
+  const renderCall = correctedCalls.find((call) => call.url.startsWith("/corrected.png"));
+  const renderQuery = new URLSearchParams(renderCall ? renderCall.url.split("?")[1] : "");
+  check("pressing the button asks the server to render the corrected frame",
+    Boolean(renderCall) && renderQuery.get("projection") === "fisheye",
+    renderCall ? renderCall.url : "no /corrected.png call");
+  check("the corrected picture comes back as an image, not as JSON",
+    objectUrls.length === 1 && objectUrls[0] !== null && frameNode.src === "blob:corrected/1",
+    `src=${frameNode.src}`);
+  const overlayCall = correctedCalls[correctedCalls.length - 1];
+  check("the overlay is redrawn through the same ideal lens",
+    Boolean(overlayCall) && overlayCall.url.startsWith("/api/session") &&
+      new URLSearchParams(overlayCall.url.split("?")[1]).get("corrected") === "1",
+    overlayCall ? overlayCall.url : "no /api/session call");
+  check("the swap is a flash comparison: the stage keeps its size and place",
+    `${page.state.cssW}x${page.state.cssH}` === stageBefore &&
+      page.state.align.dx === 0 && page.state.align.dy === 0,
+    `${stageBefore} -> ${page.state.cssW}x${page.state.cssH}`);
+  check("the readout says which picture the rings belong to",
+    documentStub.getElementById("readout").innerHTML.includes("ideal equiangular"),
+    documentStub.getElementById("readout").innerHTML.slice(0, 60));
+  check("the button offers the way back",
+    correctedButton.textContent === "back to the photo",
+    `label=${correctedButton.textContent}`);
+
+  // Pinning is a pixel of the photograph.  The circle is right under the pointer
+  // -- the same click picks it once the photo is back -- so what stops it here is
+  // the view, not a stray click.
+  const hit = { clientX: 100, clientY: 100 };
+  const wireBeforeClick = calls.length;
+  stageNode.fire("pointerdown", { button: 0, pointerId: 77, ...hit });
+  stageNode.fire("pointerup", { pointerId: 77 });
+  documentStub.getElementById("live").fire("click", {});
+  check("nothing is picked or refitted on pixels of the ideal lens",
+    page.state.live.pending === null && page.state.live.on === false &&
+      calls.length === wireBeforeClick,
+    `pending=${JSON.stringify(page.state.live.pending)} on=${page.state.live.on}`);
+
+  correctedButton.fire("click", {});
+  await settle();
+  await settle();
+  const backCall = calls.slice(-2).reverse().find((call) => call.url.startsWith("/api/session"));
+  check("going back puts the photograph and the measured overlay up again",
+    page.state.corrected === false && frameNode.src.startsWith("/frame.jpg") &&
+      Boolean(backCall) &&
+      new URLSearchParams(backCall.url.split("?")[1]).get("corrected") === "0",
+    `src=${frameNode.src} session=${backCall ? backCall.url : "none"}`);
+  check("the corrected picture's object URL is released",
+    objectUrls[0] === null, JSON.stringify(objectUrls));
+
+  page.state.live.on = true;
+  const raster = 100 / page.state.scale;
+  page.state.session.overlay.stars[0].x = raster;
+  page.state.session.overlay.stars[0].y = raster;
+  page.state.overlayAlign = { ...page.state.align };
+  stageNode.fire("pointerdown", { button: 0, pointerId: 78, ...hit });
+  stageNode.fire("pointerup", { pointerId: 78 });
+  check("the same click does pick the star once the photograph is back",
+    Boolean(page.state.live.pending) && page.state.live.pending.name === "Vega",
+    `pending=${JSON.stringify(page.state.live.pending)}`);
+  page.state.live.on = false;
+  page.state.live.pending = null;
+
+  // A server that cannot render it must say so, not leave a broken picture on
+  // the stage under rings drawn for a correction that is not there.
+  correctedReply = { status: 400, body: { error: "cannot read the frame" } };
+  correctedButton.fire("click", {});
+  await settle();
+  await settle();
+  check("a refusal is reported and the photograph stays up",
+    page.state.corrected === false && frameNode.src.startsWith("/frame.jpg") &&
+      documentStub.getElementById("status").textContent.includes("cannot read the frame"),
+    `src=${frameNode.src} status=${documentStub.getElementById("status").textContent}`);
+  correctedReply = null;
 
   console.log(results.join("\n"));
   const failed = results.filter((line) => line.startsWith("FAIL")).length;

@@ -72,7 +72,7 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")  # set in environment!
 
 # Path to persist state between runs so we don't re-alert on restart.
 STATE_FILE = Path(os.environ.get("MONITOR_STATE_FILE",
-                                  Path.home() / ".gcp_bucket_monitor_state.json"))
+                                  ".gcp_bucket_monitor_state.json"))
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -103,6 +103,7 @@ def load_state() -> dict:
         "stale_alerted": [],        # folders we already sent a stale alert for
         "new_folder_alerted": [],   # folders we already sent a new-folder alert for
         "sequence_log_counts": {},  # folder -> line count of sequence_log.txt
+        "sequence_log_headers": {}, # folder -> first line (header) of sequence_log.txt
     }
 
 
@@ -172,7 +173,7 @@ def is_no_gps_folder(folder_name: str) -> bool:
     return folder_name.startswith("seq_0000-")
 
 
-def fetch_sequence_log_count(bucket: str, folder_name: str) -> int | None:
+def fetch_sequence_log_count_and_coordinates(bucket: str, folder_name: str) -> int | None:
     """
     Fetch sequence_log.txt from the bucket and return its line count.
     Returns None if the file doesn't exist or can't be read.
@@ -183,7 +184,16 @@ def fetch_sequence_log_count(bucket: str, folder_name: str) -> int | None:
             ["gsutil", "cat", uri],
             stderr=subprocess.DEVNULL,
         ).decode()
-        return sum(1 for line in output.splitlines() if line.strip())
+        lines = output.splitlines()
+        count = sum(1 for line in lines if line.strip())
+        coordinates = None
+        for line in lines[:5]:
+            if "lat" in line:
+                coordinates = line
+                coordinates = coordinates.split("]")[1]
+                break
+
+        return f"{count:8.0f}\t{coordinates}"
     except subprocess.CalledProcessError:
         return None
 
@@ -204,7 +214,7 @@ def get_sequence_log_counts(
         if folder in cache:
             continue  # already cached, skip the network call
         log.info("Fetching sequence_log.txt for new folder: %s", folder)
-        cache[folder] = fetch_sequence_log_count(bucket, folder)
+        cache[folder] = fetch_sequence_log_count_and_coordinates(bucket, folder)
 
     return cache
 

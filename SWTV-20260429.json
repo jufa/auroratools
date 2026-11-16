@@ -1,0 +1,742 @@
+[
+    {
+        "id": "6DPcuxY5lAY",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-06T06:59:31Z",
+        "end_datetime_utc": "2026-04-06T09:28:42Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 107.5
+    },
+    {
+        "id": "F3eWfVizsrE",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-24T02:36:37Z",
+        "end_datetime_utc": "2026-03-24T05:10:12Z",
+        "location": "50.42, 99.09",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 22.3
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-02-01T05:37:45Z",
+        "end_datetime_utc": "2025-02-01T06:22:09Z",
+        "location": "62.57, 113.98",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 38.6
+    },
+    {
+        "id": "M6xPGWwrCMU",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-21T09:02:03Z",
+        "end_datetime_utc": "2026-02-21T11:46:09Z",
+        "location": "45.52, 170.11",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 23.8
+    },
+    {
+        "id": "rmdeLqEV3CU",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-21T07:18:00Z",
+        "end_datetime_utc": "2026-03-21T18:15:20Z",
+        "location": "44.97, 169.24",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 153.8
+    },
+    {
+        "id": "0rqB_gJsuFA",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-21T10:26:19Z",
+        "end_datetime_utc": "2026-01-21T11:27:35Z",
+        "location": "50.39, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 48.9
+    },
+    {
+        "id": "MT4lE4Xvdog",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-21T02:47:50Z",
+        "end_datetime_utc": "2026-01-21T12:35:44Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 313.2
+    },
+    {
+        "id": "aHfOdpbzyLM",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-18T07:57:53Z",
+        "end_datetime_utc": "2026-01-18T09:38:21Z",
+        "location": "64.57, 149.26",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 56.1
+    },
+    {
+        "id": "3MlfnFEgDes",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-03T07:04:17Z",
+        "end_datetime_utc": "2026-04-03T16:44:09Z",
+        "location": "44.97, 169.24",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 240.8
+    },
+    {
+        "id": "yRhUMvNggfE",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-18T04:05:37Z",
+        "end_datetime_utc": "2026-04-18T05:36:59Z",
+        "location": "50.42, 99.09",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 13.3
+    },
+    {
+        "id": "ikIUC7gX-NY",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-10T02:41:17Z",
+        "end_datetime_utc": "2026-03-10T03:19:36Z",
+        "location": "50.37, 99.10",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 15.6
+    },
+    {
+        "id": "5SFlDdWghcw",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-22T09:53:52Z",
+        "end_datetime_utc": "2026-02-22T11:42:34Z",
+        "location": "45.86, 170.69",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 15.8
+    },
+    {
+        "id": "T9W5D3kfkL0",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-23T09:31:07Z",
+        "end_datetime_utc": "2026-03-23T12:40:46Z",
+        "location": "45.52, 170.11",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 26.2
+    },
+    {
+        "id": "yQ0n0tiIypA",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-23T02:12:51Z",
+        "end_datetime_utc": "2026-01-23T03:07:39Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 4.1
+    },
+    {
+        "id": "QlqmWblVBLk",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-05T02:54:16Z",
+        "end_datetime_utc": "2026-02-05T07:18:38Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 106.0
+    },
+    {
+        "id": "0uM1quTPVe4",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-17T08:18:18Z",
+        "end_datetime_utc": "2026-01-17T10:54:49Z",
+        "location": "64.20, 145.84",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 99.8
+    },
+    {
+        "id": "giCsR9EoFYk",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-21T07:51:11Z",
+        "end_datetime_utc": "2026-03-21T12:33:42Z",
+        "location": "45.52, 170.11",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 71.2
+    },
+    {
+        "id": "T8LiJJL4IOw",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-15T08:12:34Z",
+        "end_datetime_utc": "2026-01-15T13:52:14Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 211.0
+    },
+    {
+        "id": "GokPsQ7qBb0",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-15T04:31:17Z",
+        "end_datetime_utc": "2026-02-15T04:58:54Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 11.1
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-12-06T07:28:19Z",
+        "end_datetime_utc": "2025-12-06T12:54:33Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 215.0
+    },
+    {
+        "id": "cwOv9OXGCrs",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-09T06:30:10Z",
+        "end_datetime_utc": "2026-02-09T14:01:11Z",
+        "location": "66.36, 147.39",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 175.2
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-02-02T05:52:35Z",
+        "end_datetime_utc": "2025-02-02T06:06:35Z",
+        "location": "62.43, 114.33",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 12.1
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-02-02T03:57:50Z",
+        "end_datetime_utc": "2025-02-02T05:12:26Z",
+        "location": "62.45, 114.34",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 64.2
+    },
+    {
+        "id": "1RRTq59RE_E",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-24T05:34:44Z",
+        "end_datetime_utc": "2026-03-24T13:54:41Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 355.3
+    },
+    {
+        "id": "brUjQpcBXwM",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-08T06:47:49Z",
+        "end_datetime_utc": "2026-03-08T07:57:23Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 28.0
+    },
+    {
+        "id": "txonyx54wwY",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-15T01:47:44Z",
+        "end_datetime_utc": "2026-02-15T02:32:18Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 18.0
+    },
+    {
+        "id": "6UM7g5HfrPs",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-07T01:36:28Z",
+        "end_datetime_utc": "2026-03-07T05:02:25Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 82.9
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-02-02T06:30:19Z",
+        "end_datetime_utc": "2025-02-02T06:42:40Z",
+        "location": "62.43, 114.33",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 10.6
+    },
+    {
+        "id": "iXUeOFZm1KY",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-22T23:07:34Z",
+        "end_datetime_utc": "2026-01-22T23:38:32Z",
+        "location": "44.64, 63.42",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 36.4
+    },
+    {
+        "id": "l_Cd-atlP54",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-07T06:52:46Z",
+        "end_datetime_utc": "2026-02-07T14:34:27Z",
+        "location": "66.36, 147.39",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 171.4
+    },
+    {
+        "id": "QDovScH0yDU",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-21T05:18:00Z",
+        "end_datetime_utc": "2026-03-21T13:53:08Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 369.3
+    },
+    {
+        "id": "NPIxY-k7AxI",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-23T02:06:38Z",
+        "end_datetime_utc": "2026-03-23T06:04:37Z",
+        "location": "50.42, 99.09",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 95.8
+    },
+    {
+        "id": "pzJDHcFbLTU",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-26T04:12:32Z",
+        "end_datetime_utc": "2026-04-26T05:57:36Z",
+        "location": "50.42, 99.09",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 28.6
+    },
+    {
+        "id": "mP547mv8M_E",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-13T08:12:48Z",
+        "end_datetime_utc": "2026-03-13T09:43:12Z",
+        "location": "64.86, 147.42",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 35.0
+    },
+    {
+        "id": "4Q5w_h5NJTk",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-12-10T06:44:33Z",
+        "end_datetime_utc": "2025-12-10T09:38:51Z",
+        "location": "64.96, 148.14",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 117.1
+    },
+    {
+        "id": "eTaBsksgl7E",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-18T06:35:28Z",
+        "end_datetime_utc": "2026-04-18T10:41:32Z",
+        "location": "50.39, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 98.2
+    },
+    {
+        "id": "EBAT6u1DinU",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-18T07:15:10Z",
+        "end_datetime_utc": "2026-04-18T12:42:16Z",
+        "location": "44.97, 169.24",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 80.1
+    },
+    {
+        "id": "FTLmdde-G_Q",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-03T10:15:37Z",
+        "end_datetime_utc": "2026-03-03T11:43:56Z",
+        "location": "64.77, 147.22",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 34.1
+    },
+    {
+        "id": "RcxBGaC_rSg",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-04T02:54:37Z",
+        "end_datetime_utc": "2026-04-04T05:22:04Z",
+        "location": "50.37, 99.10",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 21.5
+    },
+    {
+        "id": "PU6cX6bMisY",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-20T04:34:42Z",
+        "end_datetime_utc": "2026-01-20T10:25:51Z",
+        "location": "65.40, 145.97",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 204.4
+    },
+    {
+        "id": "UvStvqK87zY",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-22T11:25:41Z",
+        "end_datetime_utc": "2026-02-22T11:39:54Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 5.7
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-02-02T06:21:07Z",
+        "end_datetime_utc": "2025-02-02T06:29:26Z",
+        "location": "62.43, 114.33",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 4.2
+    },
+    {
+        "id": "SCO8d4o2E7g",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-20T00:17:55Z",
+        "end_datetime_utc": "2026-01-20T01:38:53Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 65.7
+    },
+    {
+        "id": "Cywo07Q2lVg",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-03T06:07:08Z",
+        "end_datetime_utc": "2026-04-03T07:48:15Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 75.8
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-12-28T22:08:13Z",
+        "end_datetime_utc": "2025-12-29T07:08:53Z",
+        "location": "44.64, 63.42",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 221.1
+    },
+    {
+        "id": "sRv9kEsmgkM",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-20T09:42:01Z",
+        "end_datetime_utc": "2026-01-21T13:05:57Z",
+        "location": "-46.58, 168.80",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 110.0
+    },
+    {
+        "id": "BbG5Fld00z4",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-23T06:05:37Z",
+        "end_datetime_utc": "2026-03-23T06:58:34Z",
+        "location": "50.42, 99.09",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 7.7
+    },
+    {
+        "id": "iQptppHqkio",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-20T03:48:31Z",
+        "end_datetime_utc": "2026-01-20T06:12:57Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 117.3
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-02-02T06:06:54Z",
+        "end_datetime_utc": "2025-02-02T06:20:51Z",
+        "location": "62.43, 114.33",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 7.1
+    },
+    {
+        "id": "A8uwFs8JXd0",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-12T05:33:20Z",
+        "end_datetime_utc": "2026-01-12T07:21:42Z",
+        "location": "50.37, 99.10",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 88.0
+    },
+    {
+        "id": "bPsxGci6YDw",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-16T01:32:14Z",
+        "end_datetime_utc": "2026-02-16T07:12:51Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 137.1
+    },
+    {
+        "id": "IctPg19of3k",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-02T10:51:34Z",
+        "end_datetime_utc": "2026-04-02T14:06:38Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 148.2
+    },
+    {
+        "id": "94S0LbCIMEY",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-20T08:00:30Z",
+        "end_datetime_utc": "2026-03-20T16:05:16Z",
+        "location": "44.97, 169.24",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 120.3
+    },
+    {
+        "id": "Ai46fbO4eqM",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-24T08:47:07Z",
+        "end_datetime_utc": "2026-02-24T18:12:17Z",
+        "location": "45.84, 170.64",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 81.9
+    },
+    {
+        "id": "LfVwXsH8chA",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-08T04:10:12Z",
+        "end_datetime_utc": "2026-02-08T14:06:20Z",
+        "location": "66.36, 147.39",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 228.4
+    },
+    {
+        "id": "bmBX3m-cd3E",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-23T09:21:27Z",
+        "end_datetime_utc": "2026-01-23T09:29:09Z",
+        "location": "50.39, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 6.0
+    },
+    {
+        "id": "PrAE1so2-5Y",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-23T09:35:48Z",
+        "end_datetime_utc": "2026-01-23T10:33:16Z",
+        "location": "50.42, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 46.0
+    },
+    {
+        "id": "V6xYU2HN2k4",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-04T06:29:57Z",
+        "end_datetime_utc": "2026-04-04T09:33:30Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 136.2
+    },
+    {
+        "id": "3uL_ji3Uoxw",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-09T01:18:07Z",
+        "end_datetime_utc": "2026-01-09T03:34:07Z",
+        "location": "50.42, 99.09",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 111.2
+    },
+    {
+        "id": "fcx_pUBpmgQ",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-22T07:11:26Z",
+        "end_datetime_utc": "2026-03-22T14:48:35Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 327.0
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-11-13T01:41:41Z",
+        "end_datetime_utc": "2025-11-13T06:34:07Z",
+        "location": "50.42, 96.62",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 240.6
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-22T09:05:36Z",
+        "end_datetime_utc": "2026-02-22T09:34:28Z",
+        "location": "45.86, 170.69",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 2.2
+    },
+    {
+        "id": "2eZeQeZOOHw",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-22T08:51:34Z",
+        "end_datetime_utc": "2026-03-22T17:06:01Z",
+        "location": "44.97, 169.24",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 68.9
+    },
+    {
+        "id": "HHrDrB8HYsU",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-19T22:51:13Z",
+        "end_datetime_utc": "2026-01-19T23:45:46Z",
+        "location": "44.64, 63.42",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 58.9
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-23T22:50:56Z",
+        "end_datetime_utc": "2026-01-24T00:55:14Z",
+        "location": "44.64, 63.42",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 49.2
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-02-02T07:09:12Z",
+        "end_datetime_utc": "2025-02-02T08:42:30Z",
+        "location": "62.43, 114.33",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 80.8
+    },
+    {
+        "id": "cYaitzR6ARw",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-04-04T02:39:17Z",
+        "end_datetime_utc": "2026-04-04T02:51:54Z",
+        "location": "50.37, 99.10",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 5.1
+    },
+    {
+        "id": "ujD754LIMzw",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-02-10T09:49:34Z",
+        "end_datetime_utc": "2026-02-10T10:46:44Z",
+        "location": "66.36, 147.39",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 21.9
+    },
+    {
+        "id": "2Gs7-S0C1lY",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-25T07:36:53Z",
+        "end_datetime_utc": "2026-03-25T14:42:46Z",
+        "location": "64.82, 147.54",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 304.9
+    },
+    {
+        "id": "av1MlaPyvpI",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-14T08:37:06Z",
+        "end_datetime_utc": "2026-03-14T13:59:32Z",
+        "location": "45.52, 170.11",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 88.0
+    },
+    {
+        "id": "zrEgPj50_YA",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-21T12:34:58Z",
+        "end_datetime_utc": "2026-03-21T15:18:08Z",
+        "location": "45.52, 170.11",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 18.3
+    },
+    {
+        "id": "SMSlmCsCOnw",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-01-21T02:29:28Z",
+        "end_datetime_utc": "2026-01-21T06:00:36Z",
+        "location": "50.39, 99.08",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 168.4
+    },
+    {
+        "id": "",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2025-02-01T06:22:58Z",
+        "end_datetime_utc": "2025-02-01T06:32:06Z",
+        "location": "62.57, 113.98",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 3.8
+    },
+    {
+        "id": "D-xLr0b9x-I",
+        "source": "auroreye",
+        "url": "https://auroreye.ca",
+        "start_datetime_utc": "2026-03-03T09:01:38Z",
+        "end_datetime_utc": "2026-03-03T13:35:44Z",
+        "location": "45.52, 170.11",
+        "start_elapsed": 0.0,
+        "stop_elapsed": 220.8
+    }
+]

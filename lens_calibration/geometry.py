@@ -31,6 +31,7 @@ the same camera model applies to full, binned and preview rasters.
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 from functools import lru_cache
@@ -39,6 +40,8 @@ import cv2
 import numpy as np
 
 from .model import LensModel, equiangular_pixels_per_radian
+
+LOGGER = logging.getLogger(__name__)
 
 #: Directions of the ENU basis in world coordinates.
 ENU_EAST = np.array([1.0, 0.0, 0.0])
@@ -63,6 +66,22 @@ def radial_lut(lens: LensModel, height_px: float, rho_max: float, samples: int =
     rho = np.linspace(0.0, max(rho_max, 1.05 * lens.sigma_edge), samples)
     theta = rho * (lens.theta_edge / lens.sigma_edge)
     return rho, lens.sigma(theta) * (height_px / 2.0)
+
+
+@lru_cache(maxsize=32)
+def ideal_radius_lut(camera, ideal, height_px: float, samples: int = 4096):
+    """Cached 1-D table: ideal output radius (px) -> photograph radius (px).
+
+    The inverse of :func:`radial_lut`, and for the same reason: mapping one lens
+    onto another is radially symmetric, so the whole composition -- ideal angle
+    for an output radius, then the radius ``camera`` puts that angle at -- is one
+    monotone table over the radius from the optical centre.  Both curves are
+    anchored at the same rim, so the table ends where the image circle does.
+    """
+    half = height_px / 2.0
+    radius = np.linspace(0.0, ideal.lens.sigma_edge * half, samples)
+    theta = ideal.lens.theta(radius / half)
+    return radius, camera.lens.sigma(theta) * half
 
 
 
@@ -165,6 +184,22 @@ class CameraModel:
             tilt_x=float(changes.get("tilt_x", self.tilt_x)),
             tilt_y=float(changes.get("tilt_y", self.tilt_y)),
             mirrored=bool(changes.get("mirrored", self.mirrored)),
+        )
+
+    def ideal_equiangular(self) -> "CameraModel":
+        """The same camera through an *ideal* equiangular lens.
+
+        Same optical centre, same attitude, same mirror: only the radial law is
+        replaced, by the equiangular curve through the rim this camera measured
+        (:meth:`LensModel.equiangular`), so the image circle keeps its radius and
+        its rim angle and the correction is a pure radial stretch about the axis.
+        It is the ``mode='optical'`` output of :meth:`undistort_maps` stated as a
+        camera: what the deliverable resamples into, before any attitude.
+        A frame starved of pins gets the seed lens's ideal, which is still the
+        right shape at the right scale -- it is just not a measurement.
+        """
+        return self.with_updates(
+            lens=LensModel.equiangular(self.lens.theta_edge_deg, self.lens.sigma_edge)
         )
 
     # --------------------------------------------------- pixel <-> direction
@@ -372,4 +407,71 @@ class CameraModel:
             mirrored=bool(payload.get("mirrored", False)),
         )
 
+
+# ------------------------------------------------------------ correction maps
+def remap_to_ideal(
+    image: np.ndarray,
+    camera: "CameraModel",
+    ideal: "CameraModel",
+    block_rows: int = 512,
+    flags: int = cv2.INTER_CUBIC,
+) -> np.ndarray:
+    """Resample ``image`` so the lens reads as ``ideal``, at the raster's own size.
+
+    ``ideal`` is normally the camera's own equiangular disc
+    (:meth:`CameraModel.ideal_equiangular`), and this is the same resampling
+    :meth:`CameraModel.undistort_maps` builds for ``mode='optical'`` -- the disc
+    keeps its size, so output radius fraction and input radius fraction mean the
+    same field angle.
+
+    Output pixel -> its radius about the ideal axis -> the field angle the ideal
+    lens gives that radius -> the radius ``camera`` puts the *same* angle at ->
+    the photograph pixel to sample.  Azimuth is untouched, so the whole map is
+    one radius table (:func:`ideal_radius_lut`) plus a per-pixel scale, and both
+    cameras are anchored at the same rim: the image circle keeps its radius, its
+    centre and its orientation, and only the stretch inside it changes.  That is
+    what makes a flash comparison against the photograph show the *distortion*
+    moving rather than the picture jumping about.
+
+    Everything outside the circle is black, as in the photograph.  The maps are
+    built a band of rows at a time and handed straight to :func:`cv2.remap`, so a
+    full-resolution frame costs one output array and one band of float32 maps
+    instead of four image-sized grids.
+    """
+    height, width = image.shape[:2]
+    centre_x, centre_y = camera.centre_px(float(height))
+    ideal_x, ideal_y = ideal.centre_px(float(height))
+    radius_out, radius_src = ideal_radius_lut(camera, ideal, float(height))
+    rim = float(radius_out[-1])
+
+    out = np.zeros_like(image)
+    columns = np.arange(width, dtype=np.float64) + 0.5
+    for first in range(0, height, int(block_rows)):
+        stop = min(height, first + int(block_rows))
+        rows = np.arange(first, stop, dtype=np.float64) + 0.5
+        dx = (columns - ideal_x)[None, :]
+        dy = (rows - ideal_y)[:, None]
+        radius = np.hypot(dx, dy)
+        inside = radius <= rim
+        # The output radius -> photograph radius table, clamped at 0 on the axis
+        # where the direction of the stretch is not defined anyway.
+        wanted = np.where(inside, np.interp(radius, radius_out, radius_src), 0.0)
+        stretch = np.divide(wanted, radius, out=np.zeros_like(radius), where=radius > 0.0)
+        map_x = (centre_x + dx * stretch).astype(np.float32)
+        map_y = (centre_y + dy * stretch).astype(np.float32)
+        band = cv2.remap(
+            image,
+            map_x,
+            map_y,
+            interpolation=flags,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0, 0, 0),
+        )
+        band[~inside] = 0
+        out[first:stop] = band
+    LOGGER.debug(
+        "resampled %dx%d onto an ideal equiangular lens (rim %.1f px)",
+        width, height, rim,
+    )
+    return out
 

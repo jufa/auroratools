@@ -1,7 +1,7 @@
 """EXIF time / position extraction for calibration frames.
 
 The calibration needs three things from the file: which way the camera was
-pointing (which the solver recovers), *when* the shutter opened, and *where* it
+pointing (which the pins measure), *when* the shutter opened, and *where* it
 was.  Sony bodies write the capture instant as local time plus an optional UTC
 offset, and GPS fields carry their own UTC stamp.  Everything is returned
 together with a provenance string so the UI can flag assumptions instead of

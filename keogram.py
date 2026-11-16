@@ -405,78 +405,11 @@ class KeogramGenerator():
       pass
     return dim
 
-
-  # def resize_images(self, input_path):
-  #   try:
-  #     files = fnmatch.filter(os.listdir(input_path), '*.jpg')
-  #   except:
-  #     print(f"ERROR: could not open folder for resizing operation: {input_path}")
-  #     print(f"exception details: {sys.exc_info()[0]}: {sys.exc_info()[1]}")
-  #     return
-  #   output_path = os.path.join(input_path,SCALED_FOLDER_NAME)
-
-  #   try:
-  #     os.mkdir(output_path)
-  #   except OSError as error:
-  #     print(error)
-
-  #   files.sort()
-  #   files_to_scan_count = len(files)
-  #   for f in files:
-  #     file_path = os.path.join(input_path, f)
-  #     im = JPEGImage(file_path)
-  #     image_dims = self.get_image_size(file_path)
-  #     operations = {"crop": False, "resize": False}
-
-  #     if image_dims:
-  #       if image_dims["height"] > RESIZE_DIMENSION:
-  #         operations["resize"] = True
-  #       if image_dims["height"] < image_dims["width"]:
-  #         operations["crop"] = True
-  #     else:
-  #       # could not determine image dimesnsions: skip:
-  #        print(f"ERROR: {file_path}: image size could not be determined")
-
-  #     if operations["crop"]:
-  #       x = image_dims["width"] - image_dims["height"]
-  #       x = int(x * 0.5 / 16) * 16
-  #       y = 0
-  #       height = image_dims["height"]
-  #       width = height
-  #       im = im.crop(x, y, width, height)
-  #     if operations["resize"]:
-  #       im = im.downscale(RESIZE_DIMENSION, RESIZE_DIMENSION)
-     
-  #     print(f"{file_path}: {image_dims['width']}x{image_dims['height']}\tcrop: {operations['crop']}\tresize:{operations['resize']}")
-
-  #     if any(value == True for value in operations.values()):
-  #       try:
-  #         save_path = os.path.join(output_path, f)
-  #         im.save(save_path)
-  #         files_to_scan_count -= 1
-  #       except:
-  #         print(f"ERROR: could not save {save_path}")
-  #         print(f"exception details: {sys.exc_info()[0]}: {sys.exc_info()[1]}")
-  #     else:
-  #       files_to_scan_count -= 1
-  #   if files_to_scan_count == 0:
-  #     print("resize complete without error")
-  #     with open(os.path.join(input_path, 'sequence_log.txt'), 'a') as f:
-  #       f.write("# RESIZE COMPLETE\n")
-
-
-    # else:
-    #   print(f"ERROR: unresized image count: {files_to_scan_count}") 
-    # return files_to_scan_count == 0 # if 0 then successfully handled all files
-
-
   def folder_status(self, path):
     status = self.parse_sequence_log(path)
     status["file_count"] = self.count_images(path)
 
     return status
-
-
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 """Visual alignment aids: star clusters, nebulae and the Milky Way.
 
 These are drawn, never fitted.  A pin has to hang off something with a single
-position -- a catalogue star, which the solver predicts to an arcsecond and can
+position -- a catalogue star, which the catalogue predicts to an arcsecond and
 therefore fit against -- whereas a cluster is a fuzzy patch with no centre worth
 clicking.  What the aids answer is the question the rings cannot: "is that bright
 smudge the Pleiades, or the Double Cluster?", while the photo is still being

@@ -36,7 +36,7 @@ from erfa import ErfaWarning
 # astropy-iers-data release gives ample accuracy for alt/az work.  The staleness
 # limit goes with it: astropy raises when the predictive part of the table is
 # older than ``auto_max_age``, which would make every frame shot after that
-# window unusable (the overlay and the solver both read the field) on any
+# window unusable (the overlay reads the field) on any
 # machine that cannot download a fresh bulletin.  Predicted UT1-UTC is good to
 # ~0.1 s, i.e. ~1.5 arcsec of sky rotation, far below anything this alignment
 # cares about.

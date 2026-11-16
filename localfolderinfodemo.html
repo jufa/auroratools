@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Subfolder Scanner</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f9f9f9;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        button {
+            background-color: #0070f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #0051b3;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+        .error {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        .empty {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Local Subfolder Scanner</h2>
+        <p>Click the button below, select a folder, and the app will list only its immediate subfolders.</p>
+        
+        <button id="scanBtn">Select & Scan Folder</button>
+
+        <h3 id="folderName"></h3>
+        <ul id="subfolderList"></ul>
+    </div>
+
+    <script>
+        document.getElementById('scanBtn').addEventListener('click', async () => {
+            const listElement = document.getElementById('subfolderList');
+            const folderNameHeading = document.getElementById('folderName');
+            
+            // Clear previous results
+            listElement.innerHTML = '';
+            folderNameHeading.textContent = '';
+
+            // Check if the browser supports the API
+            if (!('showDirectoryPicker' in window)) {
+                listElement.innerHTML = `<li class="error">Error: Your browser does not support the File System Access API. Please try Google Chrome, Microsoft Edge, or Safari.</li>`;
+                return;
+            }
+
+            try {
+                // 1. Open the directory picker
+                const directoryHandle = await window.showDirectoryPicker();
+                
+                folderNameHeading.textContent = `Subfolders inside "${directoryHandle.name}":`;
+                let hasSubfolders = false;
+
+                // 2. Iterate through the contents
+                for await (const entry of directoryHandle.values()) {
+                    // Filter: We only want directories, not files
+                    if (entry.kind === 'directory') {
+                        hasSubfolders = true;
+                        const li = document.createElement('li');
+                        li.textContent = `📁 ${entry.name}`;
+                        listElement.appendChild(li);
+                    }
+                }
+
+                // If no subfolders were found
+                if (!hasSubfolders) {
+                    listElement.innerHTML = `<li class="empty">No subfolders found in this directory.</li>`;
+                }
+
+            } catch (error) {
+                // Handle user cancellation gracefully
+                if (error.name === 'AbortError') {
+                    folderNameHeading.textContent = 'Scan cancelled by user.';
+                } else {
+                    console.error(error);
+                    listElement.innerHTML = `<li class="error">An error occurred: ${error.message}</li>`;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

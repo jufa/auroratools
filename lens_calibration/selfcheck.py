@@ -1,4 +1,4 @@
-"""Executable self-checks for the camera geometry and the attitude solver.
+"""Executable self-checks for the camera geometry, the pin fit and the page.
 
 Run from the repository root::
 
@@ -6,8 +6,8 @@ Run from the repository root::
 
 Why this exists
 ---------------
-The synthetic frames used to test the solver are produced *through the same
-projection the solver inverts*, so a handedness error cancels out of any single
+The synthetic frames used by these checks are produced *through the same
+projection the code inverts*, so a handedness error cancels out of any single
 round trip: pixels go out and come back with the same mistake baked in.  That
 is exactly how a mirrored camera basis survived a green synthetic suite while
 every real frame only matched with ``mirrored=True``.  The checks below
@@ -24,8 +24,10 @@ therefore pin down statements that a round trip cannot see:
    stayed green while every real frame could only match as a mirror;
 4. pixels survive ``enu_from_pixel`` -> ``pixel_from_enu`` in both pixel
    conventions;
-5. the public solve path recovers a known attitude from a synthetic frame
-   without falling back on the mirrored convention;
+5. the overlay is drawn with the rig's own lens -- a focal length in pixels
+   per radian and its odd ``k`` terms -- rather than with an ideal disc, so the
+   rings start out near the stars and a pinned star's field angle is read
+   through the curve that drew its circle;
 6. the web page's own copy of the raster -> overlay transform, and the drag /
    rotate / mirror / nudge handlers that feed it, produce exactly what
    ``session.Alignment`` says they should -- the page is where a sign slip is
@@ -41,31 +43,42 @@ therefore pin down statements that a round trip cannot see:
    also answer *in JSON* when they do not exist or are called with the wrong
    method: Flask's HTML error page reached the page as "Unexpected token '<'",
    which reported a parse failure instead of a server that is out of date;
-8. the star field can be built for a frame shot *today* without a network: the
-   overlay and the solver both read it, so an IERS bulletin that has gone stale
-   takes the whole page down (astropy raises rather than degrading quietly);
-9. pinning a star and clicking it in the photograph is a georeferencing fit, not
-   a nudge: one pin can only move the photo, two also set the roll, and a third
-   makes the fit least squares -- so the page's residual line has to be exactly
-   the reprojection error of the transform the page then applies, and the pixel
-   it posts has to be a pixel of the *photograph*, not of the screen, or every
-   refit of a turned photo would turn it again.  A wrong mirror is invisible with
-   two pins (any rigid fit through two pairs is exact) and unmissable with three,
-   which is why the mirror stays a user decision instead of being fitted;
-10. from the *fourth* pin the pins also calibrate the lens.  A rigid fit is
-    exhausted at two pins, so the third can only report an error it has no term
-    for; what is missing is radial, and the model that describes it is the one
-    ``cv2.fisheye`` calibrates (focal length plus odd ``k`` terms in theta).
-    Four pins determine the optical centre and ``k1``, each further pin buys one
-    more odd term, and the answer has to carry the overlay re-projected through
-    that lens -- with the rings still remembering their *ideal* positions,
-    because those are what a later pin's field angle is read from;
+8. the star field can be built for a frame shot *today* without a network:
+   the overlay reads it, so an IERS bulletin that has gone stale takes the
+   whole page down (astropy raises rather than degrading quietly);
+9. pinning a star and clicking it in the photograph is a camera fit, not a nudge.
+   A pair is a star's *name* and a pixel of the photograph, so the sky direction
+   comes from the catalogue and the answer cannot depend on where the photo is
+   dragged -- which is what lets a frame be turned after it has been pinned.  The
+   rungs grow one degree of freedom at a time: one pin places the optical axis,
+   two add the roll, three add the *tilt* of the axis (an off-zenith frame, which
+   the old shift-and-rotate alignment could never express -- a tilt stretches one
+   side of the image and compresses the other), and three is also where a wrong
+   mirror becomes decidable.  The page's residual line has to be exactly the
+   reprojection error of the positions the answer carries;
+10. from the *fourth* pin the pins also calibrate the lens, together with the axis
+    and the attitude: the model ``cv2.fisheye`` calibrates (focal length plus odd
+    ``k`` terms in theta), four pins determining the optical centre and ``k1`` and
+    each further pin buying one more odd term up to ``k4``.  A synthetic (f, k) on
+    a *tilted* camera has to come back exactly -- lens, axis, roll and tilt -- and
+    a curve that folds inside the disc is reported rather than drawn as if the rim
+    were measured;
 11. the drawn help is help and not data: the clusters, nebulae and Milky Way
     band that the page shows as orientation cues have to be placed by the sky
     model (the Pleiades marker on Alcyone's ring, a fixed pair of aids keeping
     its separation while the sky turns), they have to stay out of the ``stars``
     list the page's hit test walks -- that is what stops one from being pinned --
-    and they have to follow the lens that is being drawn.
+    and they have to follow the lens that is being drawn;
+12. the artefact is written *beside the photograph it describes* (a folder of
+    JSONs keyed by file name is a second place to keep in step with the frames),
+    except for a browser upload, whose copy only exists under the temp directory;
+13. the corrected preview really is the *ideal* equiangular lens and not a second
+    rendering of the measured one: a synthetic star lands where the equiangular
+    curve puts its field angle, on the same azimuth; correcting a camera that is
+    already ideal is the identity; the raster keeps the photograph's own size; and
+    the overlay asked for with ``corrected=1`` is drawn through that same lens --
+    drawn through the measured one it would show the correction itself as an
+    error, which is the feature inverted.
 """
 
 from __future__ import annotations
@@ -79,6 +92,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 from .catalog import StarField, star_field
@@ -88,21 +102,21 @@ from .geometry import (
     enu_from_altaz,
     rotation_from_attitude,
 )
-from .match import DetectedStars, solve_attitude
 from .model import LensModel
+from .session import WORK_HEIGHT
 
-#: Circular fisheye used by the calibration: 190 deg across the disc.
+#: Stand-in lens for the geometry checks (a 190 deg equisolid disc).
 NOMINAL_FOV_DEG = 190.0
 
 
-def nominal_lens() -> LensModel:
-    """The equisolid first guess of the Meike 6.5 mm fisheye."""
+def stand_in_lens() -> LensModel:
+    """A plausible fisheye for checks that need a lens and not a calibration."""
     return LensModel.from_family("equisolid", fov_deg=NOMINAL_FOV_DEG)
 
 
 def _camera(roll: float = 0.0, tilt_x: float = 0.0, tilt_y: float = 0.0) -> CameraModel:
-    """Zenith-ish camera with the nominal lens (attitude in radians)."""
-    return CameraModel(lens=nominal_lens(), roll=roll, tilt_x=tilt_x, tilt_y=tilt_y)
+    """Zenith-ish camera with the stand-in lens (attitude in radians)."""
+    return CameraModel(lens=stand_in_lens(), roll=roll, tilt_x=tilt_x, tilt_y=tilt_y)
 
 
 def check_rotation() -> None:
@@ -182,8 +196,8 @@ def check_pixel_handedness() -> None:
             "pixel -> sky map is mirrored"
         )
         assert _orientation(model.with_updates(mirrored=True)) < 0.0, (
-            "the mirrored convention is not a mirror, so the solver's fallback "
-            "would be pointless"
+            "the mirrored convention is not a mirror, so the fitted camera's "
+            "fallback would be pointless"
         )
 
 
@@ -222,73 +236,6 @@ def _synthetic_field(rng: np.random.Generator, count: int) -> StarField:
     )
 
 
-def check_synthetic_solve() -> None:
-    """The public solve path recovers a known attitude without mirroring."""
-    rng = np.random.default_rng(2)
-    lens = nominal_lens()
-    truth = CameraModel(
-        lens=lens,
-        roll=math.radians(25.0),
-        tilt_x=math.radians(2.0),
-        tilt_y=math.radians(-3.0),
-    )
-    field = _synthetic_field(rng, 80)
-    height = 800.0
-
-    predicted_x, predicted_y = truth.pixel_from_altaz(field.alt, field.az, height)
-    margin = 0.02 * height
-    inside = (
-        (predicted_x > margin)
-        & (predicted_x < height - margin)
-        & (predicted_y > margin)
-        & (predicted_y < height - margin)
-    )
-    count = int(np.count_nonzero(inside))
-    assert count >= 25, f"only {count} synthetic stars landed in the frame"
-
-    detections = DetectedStars(
-        x=predicted_x[inside],
-        y=predicted_y[inside],
-        flux=np.linspace(20.0, 1.0, count),
-        peak=np.full(count, 5.0),
-        fwhm=np.full(count, 1.5),
-        snr=np.full(count, 40.0),
-        height_px=height,
-    )
-
-    solution = solve_attitude(
-        detections,
-        field,
-        _camera(),  # zenith pointing, roll 0: the solver has to find the rest
-        height,
-        height,
-        tilt_range_deg=6.0,
-        fit_geometry=False,
-        calibrate_lens=False,
-        quality_filter=False,
-    )
-    delta = solution.camera.rotation().T @ truth.rotation()
-    error_deg = math.degrees(
-        math.acos(float(np.clip((np.trace(delta) - 1.0) / 2.0, -1.0, 1.0)))
-    )
-    print(
-        f"    solved {len(solution.correspondences)}/{count} stars, "
-        f"{solution.correspondences.rms_deg:.3f} deg RMS, "
-        f"{error_deg:.3f} deg attitude error"
-    )
-    for note in solution.notes:
-        print(f"    note: {note}")
-
-    assert not solution.mirrored, (
-        "solve_attitude fell back to the mirrored pixel convention: the camera "
-        "frame is left handed again"
-    )
-    assert solution.match_fraction > 0.5, (
-        f"only {len(solution.correspondences)} of {count} synthetic stars matched"
-    )
-    assert error_deg < 1.0, f"attitude is {error_deg:.2f} deg away from the truth"
-
-
 def check_web_ui() -> None:
     """The browser half of the alignment page agrees with the Python half.
 
@@ -318,7 +265,10 @@ def check_web_ui() -> None:
     assert "__NEXT" not in text, "chunk marker left behind in index.html"
     for needle in ("function forward(", "function applyTransform(", "function siteQuery(",
                    'id="showGrid"', 'id="showAids"', 'id="openFile"', "/api/open",
-                   "overlay.grid", "overlay.aids", "data-remove", "strokeText"):
+                   "overlay.grid", "overlay.aids", "data-remove", "strokeText",
+                   'id="focal"', 'id="kTerms"', 'id="projection"', "fisheye",
+                   "/corrected.png", 'id="corrected"', "setCorrected",
+                   "[hidden] { display: none !important; }"):
         assert needle in text, f"index.html lost {needle!r}"
 
     node = shutil.which("node")
@@ -390,9 +340,9 @@ def check_frame_picker() -> None:
     store = FrameStore(calibration_dir=Path(tempfile.mkdtemp()))
     client = create_app(store).test_client()
 
-    for url in ("/api/session", "/api/detections", "/frame.jpg"):
+    for url in ("/api/session", "/frame.jpg"):
         assert client.get(url).status_code == 409, f"{url} answered before a frame was open"
-    for url in ("/api/align", "/api/save"):
+    for url in ("/api/save", "/api/live"):
         assert client.post(url, json={}).status_code == 409, f"{url} answered without a frame"
 
     empty = client.post("/api/open", json={})
@@ -417,7 +367,26 @@ def check_frame_picker() -> None:
         assert opened.get_json()["name"] == sample.name, opened.get_json()
         assert Path(store.session.path).name == sample.name
         assert client.get("/api/session").status_code == 200
-        assert client.get("/frame.jpg").mimetype == "image/jpeg"
+
+        # What the page is given is the photograph, not a rendering of it: the
+        # file's own bytes at the file's own size, so the browser can zoom into
+        # what the sensor recorded and no stretch of the server's is baked in.
+        served = client.get("/frame.jpg")
+        assert served.mimetype == "image/jpeg"
+        assert served.data == sample.read_bytes(), (
+            "the frame served to the page is not the file as it lies on disk"
+        )
+        photo = cv2.imread(str(sample), cv2.IMREAD_COLOR)
+        raster = (int(store.session.width), int(store.session.height))
+        assert store.session.frame_size == (photo.shape[1], photo.shape[0]), (
+            f"{store.session.frame_size} is not the photograph's own size"
+        )
+        assert raster[1] == WORK_HEIGHT and raster != store.session.frame_size, (
+            "the work raster is not a downscale of the photograph"
+        )
+        shown = client.get("/api/session").get_json()["image"]
+        assert (shown["frame_width"], shown["frame_height"]) == store.session.frame_size
+        assert (shown["width"], shown["height"]) == raster
 
         # the path the browser takes: the bytes are posted, not a file name
         posted = client.post(
@@ -427,67 +396,152 @@ def check_frame_picker() -> None:
         )
         assert posted.status_code == 200, posted.get_json()
         assert Path(store.session.path).name == "posted.jpg", store.session.path
+
+        # A frame that is not a JPEG arrives as a lossless PNG of the array the
+        # geometry was fitted to -- the same pixels the pins are measured on --
+        # and an EXIF orientation (which the raster ignores and the browser would
+        # honour) takes the same path.
+        png = sample.parent / "00000003.png"
+        if png.is_file():
+            assert client.post("/api/open", json={"path": str(png)}).status_code == 200
+            lossless = client.get("/frame.jpg")
+            assert lossless.mimetype == "image/png", lossless.mimetype
+            decoded = cv2.imdecode(np.frombuffer(lossless.data, np.uint8), cv2.IMREAD_COLOR)
+            assert decoded is not None and np.array_equal(
+                decoded, cv2.imread(str(png), cv2.IMREAD_COLOR)
+            ), "the PNG served for a non-JPEG frame is not the raster the fit used"
     finally:
         (UPLOAD_DIR / "posted.jpg").unlink(missing_ok=True)
 
 
 def check_live_alignment() -> None:
-    """Pinning stars is a fit, and the fit is what the page draws.
+    """Pinning is a camera fit, and it grows one degree of freedom at a time.
 
-    Two statements have to hold for the live workflow to mean anything.  The
-    first is arithmetic: one pin can only move the photo (the rotation is the
-    user's), two pins also determine the roll, and a third pin turns the fit
-    into a least-squares one -- so a pin that disagrees is *visible* instead of
-    being absorbed.  The second is that the page's residual line is not a
-    separate opinion: it must be exactly the reprojection error of the
-    transform the page then applies, or the user would chase a number that
-    describes a different photo.
+    The old page moved the photograph under a fixed sky chart, which is a
+    similarity with unit scale: three degrees of freedom, exhausted by the second
+    pin, and a *tilted* frame -- one that does not look at the zenith -- cannot be
+    expressed that way at all.  What the pins now measure is the camera itself, and
+    this check pins down each rung of the ladder against a known answer:
 
-    A wrong mirror is the one thing two pins cannot show (any rigid transform
-    through two pairs is exact, mirrored or not), which is why the check pins
-    the three-pin case where it does blow up -- and why the page keeps the
-    mirror as a user decision rather than fitting it.
+    * one pin places the optical axis and leaves the attitude alone;
+    * two pins add the roll, exactly;
+    * three pins add the tilt of the axis, which is what makes an off-zenith frame
+      an ordinary frame instead of a special case: a tilt stretches one side of
+      the image and compresses the other, and no shift or rotation of the raster
+      can imitate that;
+    * a pin that disagrees keeps its error instead of handing it to the rest.
+
+    Two statements are about the wire.  A pair is a star's *name* and a pixel of
+    the *photograph*, so the answer cannot depend on where the photo happens to be
+    dragged -- which is what lets a frame be turned after it has been pinned --
+    and the line the page draws is the reprojection error of the positions the
+    answer carries, so the two can never disagree.
     """
+    from .geometry import CameraModel, altaz_from_enu, enu_from_altaz
+    from .model import LensModel
     from .server import FrameStore, create_app
-    from .session import Alignment, ControlPoint, fit_alignment
+    from .session import (
+        MIN_PINS_FOR_ATTITUDE,
+        MIN_PINS_FOR_LENS,
+        MIN_PINS_FOR_MIRROR,
+        Alignment,
+        ControlPoint,
+        fit_camera_from_pins,
+    )
 
     width = height = 1400.0
-    truth = Alignment(roll_deg=-119.3, mirrored=True, dx=25.5, dy=-14.25)
-    circles = [(300.0, 400.0), (1100.0, 380.0), (900.0, 1200.0), (420.0, 980.0)]
-    pairs = []
-    for name, (star_x, star_y) in zip(("Vega", "Altair", "Deneb", "Polaris"), circles):
-        x, y = truth.inverse(star_x, star_y, width, height)
-        pairs.append(ControlPoint(name, star_x, star_y, float(x), float(y)))
-
-    one, residual = fit_alignment(pairs[:1], width, height, roll_deg=12.0, mirrored=True)
-    assert abs(one.roll_deg - 12.0) < 1e-9 and one.mirrored, (
-        f"one pin rolled the photo by {one.roll_deg:.2f} deg: the rotation is the user's"
+    assert (MIN_PINS_FOR_ATTITUDE, MIN_PINS_FOR_MIRROR, MIN_PINS_FOR_LENS) == (2, 3, 4), (
+        MIN_PINS_FOR_ATTITUDE, MIN_PINS_FOR_MIRROR, MIN_PINS_FOR_LENS
     )
-    assert float(residual.max()) < 1e-9, residual
+    lens = LensModel.from_fisheye(560.0, (-0.09, 0.004), height_px=height, sigma_edge=0.988)
+    # Eight directions spread over the disc, as a photograph would offer them.
+    directions = enu_from_altaz(
+        np.radians(90.0 - np.array([84.0, 65.0, 40.0, 10.0, 84.0, 65.0, 40.0, 10.0])),
+        np.radians(np.array([15.0, 195.0, 15.0, 195.0, 150.0, 30.0, 250.0, 100.0])),
+    )
+    flat = CameraModel(lens=lens, xc=0.523, yc=0.472, roll=math.radians(23.0))
+    # An off-zenith frame: the optical axis 27 deg away from the zenith, which is
+    # the thing a shift-and-rotate alignment could never express.
+    tilted = flat.with_updates(tilt_x=0.42, tilt_y=-0.31)
+    # Where a drag leaves the camera before any star is pinned: the zenith, with
+    # the axis in the middle of the frame.
+    start = CameraModel(lens=lens)
 
-    two, residual = fit_alignment(pairs[:2], width, height, roll_deg=0.0, mirrored=True)
-    assert abs(two.roll_deg - truth.roll_deg) < 1e-9, (two.roll_deg, truth.roll_deg)
-    assert abs(two.dx - truth.dx) < 1e-9 and abs(two.dy - truth.dy) < 1e-9, two
-    assert float(residual.max()) < 1e-9, residual
+    def pins(camera, count):
+        x, y = camera.pixel_from_enu(directions[:count], height)
+        return [
+            ControlPoint(f"star {index}", float(px), float(py))
+            for index, (px, py) in enumerate(zip(x, y))
+        ]
 
-    # A pin that disagrees is the noise a least-squares fit cannot explain; the
-    # pin carrying it has to keep it, not hand it to the honest ones.
-    noisy = pairs[:2] + [
-        ControlPoint(pairs[2].name, pairs[2].star_x, pairs[2].star_y, pairs[2].x + 40.0, pairs[2].y)
-    ]
-    _, residual = fit_alignment(noisy, width, height, roll_deg=0.0, mirrored=True)
+    def fit(camera, count, **options):
+        return fit_camera_from_pins(
+            pins(camera, count), directions[:count], width, height, lens,
+            start=start, **options,
+        )
+
+    # One pin, taken near the rim so that "the axis moved onto it" is a long way.
+    # The frame it is taken from has the attitude the drag assumed and only its
+    # axis is off -- a photograph the user has dragged roughly right, which is the
+    # state the first pin is placed in.
+    offset = CameraModel(lens=lens, xc=0.53, yc=0.47)
+    one = fit_camera_from_pins(
+        pins(offset, 8)[7:], directions[7:], width, height, lens, start=start
+    )
+    # The star it names lands on the pixel it was given -- that is all one pair
+    # can say -- and the attitude is left exactly where the drag put it.
+    assert not one.measured and one.rms_px < 1e-6, (one.measured, one.rms_px)
+    assert one.camera.roll == start.roll and one.camera.tilt_x == start.tilt_x, one.camera
+    one_x, one_y = one.centre_px(height)
+    moved = math.hypot(one_x - start.xc * height, one_y - start.yc * height)
+    assert moved > 20.0, f"one pin moved the axis by only {moved:.1f} px"
+
+    two = fit(flat, 2)
+    assert two.rms_px < 1e-6, two.rms_px
+    assert abs(two.camera.roll - flat.roll) < 1e-6, (two.camera.roll, flat.roll)
+    assert abs(two.camera.tilt_x) < 1e-9 and abs(two.camera.tilt_y) < 1e-9, two.camera
+    two_x, two_y = two.centre_px(height)
+    assert math.hypot(two_x - flat.xc * height, two_y - flat.yc * height) < 1e-3, (two_x, two_y)
+
+    three = fit(tilted, 3)
+    assert three.rms_px < 1e-6, three.rms_px
+    assert abs(three.camera.roll - tilted.roll) < 1e-6, (three.camera.roll, tilted.roll)
+    for got, want, name in (
+        (three.camera.tilt_x, tilted.tilt_x, "tilt_x"),
+        (three.camera.tilt_y, tilted.tilt_y, "tilt_y"),
+    ):
+        assert abs(got - want) < 1e-6, (name, got, want)
+    three_x, three_y = three.centre_px(height)
+    assert math.hypot(three_x - tilted.xc * height, three_y - tilted.yc * height) < 1e-3, (
+        three_x, three_y
+    )
+    # The axis is the reading that matters for an off-zenith frame: tilt is a
+    # tangent-plane offset, so what has to come back is the *angle* off the zenith.
+    pointing = math.degrees(float(altaz_from_enu(three.camera.rotation()[:, 2])[0]))
+    wanted = 90.0 - math.degrees(math.atan(math.hypot(0.42, 0.31)))
+    assert abs(pointing - wanted) < 0.02, (pointing, wanted)
     print(
-        f"    three pins, one 40 px out: residuals "
-        f"{', '.join(f'{value:.1f}' for value in residual)} px "
-        f"({float(np.sqrt(np.mean(residual**2))):.1f} px RMS)"
+        f"    one pin moves the axis {moved:.1f} px; two set the roll"
+        f" ({math.degrees(two.camera.roll):.3f} deg); three set the tilt"
+        f" ({math.degrees(three.camera.tilt_x):.3f} / {math.degrees(three.camera.tilt_y):.3f}"
+        f" deg, pointing alt {pointing:.2f} deg)"
     )
-    assert residual[2] > 1.4 * float(residual[:2].max()), residual
-    assert float(residual.min()) > 5.0, residual
 
-    # Two pins fit any similarity exactly, so a wrong mirror hides; three do not.
-    _, hidden = fit_alignment(pairs[:2], width, height, mirrored=False)
-    _, caught = fit_alignment(pairs[:3], width, height, mirrored=False)
-    assert float(hidden.max()) < 1e-9 and float(caught.min()) > 100.0, (hidden, caught)
+    # A pin that disagrees is the noise the fit cannot explain, and it is the one
+    # that ends up carrying it: six pins, one of them 40 px out, and the outlier's
+    # residual is the largest by a factor of four.
+    noisy = pins(flat, 6)
+    noisy[0] = ControlPoint(noisy[0].name, noisy[0].x + 40.0, noisy[0].y)
+    shaken = fit_camera_from_pins(noisy, directions[:6], width, height, lens, start=start)
+    residuals = shaken.residuals
+    print(
+        f"    six pins, one 40 px out: residuals "
+        f"{', '.join(f'{value:.1f}' for value in residuals)} px"
+        f" ({shaken.rms_px:.1f} px RMS)"
+    )
+    assert int(np.argmax(residuals)) == 0, residuals
+    assert residuals[0] > 2.0 * float(np.min(residuals)), residuals
+    assert shaken.rms_px > 8.0, shaken.rms_px
 
     store = FrameStore(calibration_dir=Path(tempfile.mkdtemp()))
     client = create_app(store).test_client()
@@ -506,7 +560,6 @@ def check_live_alignment() -> None:
     wrong_method = client.get("/api/live")
     assert wrong_method.status_code == 405 and wrong_method.is_json, wrong_method.status_code
     assert "no GET /api/live" in wrong_method.get_json()["error"], wrong_method.get_json()
-
     sample = Path(__file__).resolve().parent.parent / "sampleimages" / "00000687.jpg"
     if not sample.is_file():
         print(f"    {sample.name} not found: skipping the endpoint round trip")
@@ -514,86 +567,82 @@ def check_live_alignment() -> None:
     assert client.post("/api/open", json={"path": str(sample)}).status_code == 200
     session = store.session
     image_w, image_h = float(session.width), float(session.height)
-    # Pin the circles the page actually shows.  Through the session's own
-    # alignment the circles sit on the photo, so two of these clicks are exact
-    # and the third -- 30 px off -- is the only error the fit has to explain.
     shown = client.get("/api/session").get_json()
-    stars = shown["overlay"]["stars"]
-    assert len(stars) >= 3, f"the overlay only found {len(stars)} bright stars to pin"
-    seed = Alignment.from_dict(shown["alignment"])
-    pins = []
-    for index, star in enumerate(stars[:3]):
-        x, y = seed.forward(star["x"], star["y"], image_w, image_h)
-        if index == 2:
-            x += 30.0
-        pins.append(
-            {
-                "name": star["name"],
-                "star_x": star["x"],
-                "star_y": star["y"],
-                "x": float(x),
-                "y": float(y),
-            }
-        )
+    rings = shown["overlay"]["stars"]
+    assert len(rings) >= 6, f"the overlay only found {len(rings)} bright stars to pin"
 
-    # A refit with nothing to fit, or with a pair that is not a pair, is a
-    # mistake on the wire rather than an answer of "no change".
-    assert client.post("/api/live", json={"points": []}).status_code == 400
+    # An empty list is how the page forgets its pins: the answer is the sky the
+    # drag implies and nothing is left measured.
+    forgotten = client.post("/api/live", json={"points": []})
+    assert forgotten.status_code == 200, forgotten.get_json()
+    assert forgotten.get_json()["lens"] is None and session.pins is None, forgotten.get_json()
+
+    # A pair that is not a pair, or a star the field does not have, is a mistake on
+    # the wire rather than an answer of "no change".
     assert client.post("/api/live", json={"points": [{"name": "Vega"}]}).status_code == 400
-
-    first = client.post("/api/live", json={"points": pins})
-    assert first.status_code == 200, first.get_json()
-    body = first.get_json()
-    assert len(body["points"]) == len(pins), body["points"]
-    assert body["max_px"] > 10.0 and body["rms_px"] > 5.0, body
-
-    # The line the page draws is the reprojection error of *this* transform.
-    applied = Alignment.from_dict(body["alignment"])
-    error = np.zeros((len(pins), 2))
-    for index, point in enumerate(body["points"]):
-        fx, fy = applied.forward(point["x"], point["y"], image_w, image_h)
-        drawn = math.hypot(fx - point["star_x"], fy - point["star_y"])
-        assert abs(drawn - point["residual_px"]) < 1e-6, (drawn, point["residual_px"])
-        error[index] = (point["star_x"] - fx, point["star_y"] - fy)
-
-    # And it is the *least-squares* answer: what the fit leaves behind carries no
-    # net shift or turn, so the third pin is shared out over the triangle instead
-    # of either being ignored or bending the photo onto itself.  (The photo is
-    # not allowed to zoom -- the fit is rigid -- so the residual is free to hold
-    # a scale error, which is precisely what the solver is for.)
-    clicked = np.array([[point["x"], point["y"]] for point in body["points"]])
-    fx, fy = applied.forward(clicked[:, 0], clicked[:, 1], image_w, image_h)
-    spread = np.column_stack([fx, fy])
-    spread = spread - spread.mean(axis=0)
-    assert float(np.abs(error.sum(axis=0)).max()) < 1e-6, error.sum(axis=0)
-    assert abs(float(np.sum(error[:, 0] * spread[:, 1] - error[:, 1] * spread[:, 0]))) < 1e-6, (
-        "the fit still owes a turn"
+    unknown = client.post("/api/live", json={"points": [{"name": "Nonesuch", "x": 10, "y": 20}]})
+    assert unknown.status_code == 400 and "Nonesuch" in unknown.get_json()["error"], (
+        unknown.get_json()
     )
+
+    # The circles the page shows are exactly where the seed camera puts those
+    # stars, so pinning them back must leave the camera where it was: this is the
+    # loop the user drives, with no error in it to explain.
+    pins = [{"name": ring["name"], "x": ring["x"], "y": ring["y"]} for ring in rings]
+    three = client.post("/api/live", json={"points": pins[:3]}).get_json()
+    assert three["lens"] is None and three["rms_px"] < 0.5, three["rms_px"]
+    assert abs(three["camera"]["pointing_alt_deg"] - 90.0) < 0.01, three["camera"]
+
+    six = client.post("/api/live", json={"points": pins[:6]}).get_json()
+    assert six["lens"] is not None and six["lens"]["measured"], six.get("lens_error")
+    assert six["rms_px"] < 6.0, six["rms_px"]
+    recovered = six["lens"]["focal_px"]
+    seed_focal = session.seed_focal_px()
+    assert abs(recovered - seed_focal) < 0.05 * seed_focal, (recovered, seed_focal)
 
     # The pairs are the pixels the user clicked, so the answer depends on the
-    # pairs and not on the transform the request happened to carry along: three
-    # pins set the roll and the shift themselves.
-    nudged = client.post(
-        "/api/live",
-        json={"points": pins, "roll_deg": 37.0, "dx": 120.0, "dy": -40.0},
-    )
-    assert nudged.status_code == 200, nudged.get_json()
-    other = nudged.get_json()
-    assert [p["x"] for p in other["points"]] == [p["x"] for p in body["points"]]
-    assert abs(other["rms_px"] - body["rms_px"]) < 1e-6, (other["rms_px"], body["rms_px"])
+    # pairs and not on how the photo happens to be dragged: three different
+    # transforms, the same camera.  (This is what lets the page turn a frame after
+    # it has been pinned without moving the calibration.)
+    for alignment in (
+        {"roll_deg": 37.0, "dx": 120.0, "dy": -40.0},
+        {"roll_deg": -97.5, "mirrored": False, "dx": -8.0, "dy": 12.0},
+    ):
+        moved = client.post("/api/live", json={"points": pins[:6], **alignment}).get_json()
+        for key in ("roll_deg", "tilt_x_deg", "tilt_y_deg"):
+            assert abs(moved["camera"][key] - six["camera"][key]) < 1e-6, (key, moved["camera"])
+        assert abs(moved["camera"]["centre_px"]["x"] - six["camera"]["centre_px"]["x"]) < 1e-6
+        assert abs(moved["rms_px"] - six["rms_px"]) < 1e-6, (moved["rms_px"], six["rms_px"])
 
-    # The mirror is the opposite case: it is the user's statement about how the
-    # photo sits under the sky, so it is taken from the request and three pins
-    # then say loudly that it is wrong.
-    flipped = client.post("/api/live", json={"points": pins, "mirrored": True})
-    assert flipped.status_code == 200, flipped.get_json()
-    assert flipped.get_json()["rms_px"] > 100.0, (
-        "a mirrored fit through three pins should not agree with them"
-    )
+    # The line the page draws runs from the photo pixel (moved by the transform it
+    # is showing) to the ring's new position, and that length is the residual.
+    screen = Alignment.from_dict(six["alignment"])
+    for point in six["points"]:
+        foot_x, foot_y = screen.forward(point["x"], point["y"], image_w, image_h)
+        drawn = math.hypot(point["draw_x"] - float(foot_x), point["draw_y"] - float(foot_y))
+        assert abs(drawn - point["residual_px"]) < 1e-6, (drawn, point["residual_px"])
     print(
-        f"    {len(pins)} pins fitted through /api/live: {body['rms_px']:.1f} px RMS, "
-        f"{body['max_px']:.1f} px worst ({body['points'][2]['name']} clicked 30 px off)"
+        f"    {len(pins[:6])} pins fitted through /api/live: {six['rms_px']:.2f} px RMS,"
+        f" f {recovered:.1f} px/rad (seed {seed_focal:.1f}),"
+        f" {six['lens']['num_coefficients']} k term(s),"
+        f" check {session.pins.restate_px:.2f} px"
     )
+
+    # A wrong mirror is the one thing the *fitter* can put right: the pins are a
+    # mirrored star pattern, which no rotation can explain, so the answer flips the
+    # flag and the page turns the photo over with it.  Two pins are not enough to
+    # know (any two vectors fit a rotation either way round), which is why the
+    # correction starts at MIN_PINS_FOR_MIRROR.
+    flipped = client.post("/api/live", json={"points": pins[:3], "mirrored": True}).get_json()
+    assert flipped["alignment"]["mirrored"] is False, flipped["alignment"]
+    assert flipped["rms_px"] < 2.0, flipped["rms_px"]
+    # Two pins cannot test the hand -- any two vectors fit a rotation either way
+    # round -- so the toggle is simply believed, from a frame with no pins yet.
+    client.post("/api/live", json={"points": []})
+    kept = client.post("/api/live", json={"points": pins[:2], "mirrored": True}).get_json()
+    assert kept["alignment"]["mirrored"] is True, kept["alignment"]
+
+
 
 
 def check_sky_aids() -> None:
@@ -716,7 +765,7 @@ def check_sky_aids() -> None:
     # --- and they follow the lens being drawn ------------------------------
     fitted = session.overlay(
         "equidistant", 180.0, 4.5,
-        camera=CameraModel(lens=session.nominal_lens(), xc=0.5, yc=0.5),
+        camera=CameraModel(lens=session.seed_lens(), xc=0.5, yc=0.5),
     )
     ideal_x = {aid["name"]: aid for aid in aids["objects"]}
     moved_px = max(
@@ -728,7 +777,7 @@ def check_sky_aids() -> None:
     assert moved_px > 1.0, f"the aids did not follow the lens ({moved_px:.2f} px)"
     print(
         f"    {len(aids['objects'])} aids + a {len(aids['band'][0])}-point band: Pleiades "
-        f"{gap:.1f} px from Alcyone, {moved_px:.1f} px of movement through the nominal "
+        f"{gap:.1f} px from Alcyone, {moved_px:.1f} px of movement through the seed "
         f"lens; {len(first)} of {len(SKY_AIDS)} aids above the horizon at the sample time"
     )
 
@@ -759,146 +808,141 @@ def check_field_for_today() -> None:
 
 
 def check_pinned_lens() -> None:
-    """Four pinned stars calibrate the lens; three cannot.
+    """Four pinned stars calibrate the lens; three cannot, and seven buy k4.
 
-    A rigid fit -- what the pins do up to the third star -- has three degrees of
-    freedom (shift and rotation, unit scale), so a second pin already exhausts it
-    and later pins can only report an error with no term to remove it.  The
-    radial model has to come in instead, and it is the model ``cv2.fisheye``
-    calibrates: focal length plus the odd ``k`` terms of
+    The lens is the model ``cv2.fisheye`` calibrates -- focal length plus the odd
+    ``k`` terms of::
 
-        r = f * theta * (1 + k1 t^2 + k2 t^4 + k3 t^6 + k4 t^8).
+        r = f * theta * (1 + k1 t^2 + k2 t^4 + k3 t^6 + k4 t^8)
 
-    Four pins are the count at which that becomes solvable (the optical centre and
-    ``k1``), and each further pin buys one more odd term.  This check pins down
-    the statements the page depends on: the counting rule, that the two forms of
-    the model describe the same curve, that a synthetic pair of (f, k) comes back
-    exactly, that a *frozen* focal length cannot absorb a lens that is simply
-    wider than the overlay assumes, and that the wire answer carries a
-    re-projected overlay whose rings still remember their ideal positions (a pin
-    is defined against those, so losing them would make the fourth pin
-    unusable).
+    -- and it is solved *together* with the axis and the attitude, which is what
+    lets a frame that does not point at the zenith be calibrated at all.  Four
+    pins are the count at which the lens becomes solvable (the optical centre and
+    ``k1``), and each further pin buys one more odd term, up to ``k4``, which is
+    where ``cv2.fisheye`` stops and where the pins stop too.
+
+    This check pins down the statements the page depends on: the counting rule,
+    that the two forms of the model describe the same curve, that a synthetic
+    (f, k1 .. k4) on a *tilted* camera comes back exactly -- lens, axis, roll and
+    tilt together -- that a frozen focal length cannot absorb a lens that is
+    simply wider than the starting curve, that fewer than four pins measure no
+    lens at all, and that the artefact ``/api/save`` writes holds the camera the
+    pins measured, in pixels of the photograph.
     """
-    from .model import (
-        LensModel,
-        equiangular_pixels_per_radian,
-        fisheye_radius,
-        fisheye_theta,
-    )
+    from .geometry import CameraModel, enu_from_altaz
+    from .model import LensModel, fisheye_theta
     from .server import FrameStore, create_app
     from .session import (
         MIN_PINS_FOR_LENS,
-        Alignment,
+        SEED_COEFFICIENTS,
+        SEED_FOCAL_PX,
         ControlPoint,
-        fit_alignment,
-        fit_lens_from_pins,
+        fit_camera_from_pins,
         pin_coefficient_count,
     )
 
     assert MIN_PINS_FOR_LENS == 4, MIN_PINS_FOR_LENS
-    # Four and five pins buy k1 and then k2; past that the order is capped, so a
-    # sixth star and beyond over-determine the same five unknowns.
-    counts = [pin_coefficient_count(count) for count in (3, 4, 5, 6, 7, 8)]
-    assert counts == [1, 1, 2, 2, 2, 2], counts
+    # Four, five, six and seven pins buy k1 .. k4; past that the order is capped,
+    # so an eighth star and beyond over-determine the same unknowns.
+    counts = [pin_coefficient_count(count) for count in (3, 4, 5, 6, 7, 8, 9)]
+    assert counts == [1, 1, 2, 3, 4, 4, 4], counts
 
-    # The two forms are the same family: the odd polynomial fitted to the
-    # OpenCV curve reproduces it to a small fraction of a pixel.
-    height = 1400.0
+    # The two forms are the same family: the odd polynomial fitted to the OpenCV
+    # curve reproduces it to a small fraction of a pixel.
+    height, width = 1400.0, 1400.0
     focal, distortion = 520.0, (-0.012,)
     converted = LensModel.from_fisheye(focal, distortion, height_px=height, sigma_edge=0.988)
     radius = np.linspace(0.0, 0.988 * 0.5 * height, 200)
-    wanted = fisheye_theta(radius, focal, distortion)
-    drift = np.degrees(np.abs(converted.theta(radius / (0.5 * height)) - wanted)).max()
+    drift = np.degrees(np.abs(converted.theta(radius / (0.5 * height))
+                              - fisheye_theta(radius, focal, distortion))).max()
     assert drift < 0.02, f"the polynomial form misses the fisheye curve by {drift:.4f} deg"
 
-    # A synthetic lens the pins can see exactly: the ideal overlay's radius gives
-    # the field angle, the photograph's radius is the distorted one.
+    # What the pins are taken from: a frame the overlay has never seen, pointing
+    # 7 deg away from the zenith so that the tilt has to be measured as well.
+    directions = enu_from_altaz(
+        np.radians(90.0 - np.array([84.0, 65.0, 40.0, 10.0, 84.0, 65.0, 40.0, 10.0])),
+        np.radians(np.array([15.0, 195.0, 15.0, 195.0, 150.0, 30.0, 250.0, 100.0])),
+    )
     ideal = LensModel.from_family("equidistant", fov_deg=180.0, sigma_edge=0.988)
-    focal_ideal = equiangular_pixels_per_radian(ideal, height)
-    centre = (0.53 * 1400.0, 0.46 * 1400.0)
-    pins = []
-    for theta_deg, az_deg in ((20.0, 10.0), (48.0, 100.0), (70.0, 200.0), (86.0, 290.0),
-                              (35.0, 45.0), (62.0, 150.0)):
-        theta = math.radians(theta_deg)
-        direction = np.array([math.cos(math.radians(az_deg)), math.sin(math.radians(az_deg))])
-        ideal_radius = theta * focal_ideal
-        seen_radius = float(fisheye_radius(theta, focal, distortion))
-        pins.append(
-            ControlPoint(
-                f"synthetic {theta_deg:.0f}@{az_deg:.0f}",
-                float(700.0 + ideal_radius * direction[0]),
-                float(700.0 + ideal_radius * direction[1]),
-                float(centre[0] + seen_radius * direction[0]),
-                float(centre[1] + seen_radius * direction[1]),
-            )
+    start = CameraModel(lens=ideal)
+
+    def synthetic(f, ks):
+        """Pins a tilted lens of ``(f, ks)`` would produce exactly."""
+        lens = LensModel.from_fisheye(f, ks, height_px=height, sigma_edge=0.988)
+        camera = CameraModel(
+            lens=lens, xc=0.523, yc=0.472, roll=math.radians(23.0),
+            tilt_x=0.12, tilt_y=-0.09,
+        )
+        x, y = camera.pixel_from_enu(directions, height)
+        points = [
+            ControlPoint(f"synthetic {index}", float(px), float(py))
+            for index, (px, py) in enumerate(zip(x, y))
+        ]
+        return camera, points
+
+    def fit(points, count, **options):
+        return fit_camera_from_pins(
+            points[:count], directions[:count], width, height, ideal,
+            start=start, **options,
         )
 
-    four = fit_lens_from_pins(pins[:4], Alignment(), 1400.0, height, ideal)
-    assert four.num_coefficients == 1, four.num_coefficients
-    assert abs(four.focal_px - focal) < 0.5, (four.focal_px, focal)
+    truth, pins = synthetic(focal, distortion)
+    four = fit(pins, 4)
+    assert four.measured and four.num_coefficients == 1, (four.measured, four.coefficients)
+    assert abs(four.focal_px - focal) < 1.0, (four.focal_px, focal)
     assert abs(four.coefficients[0] - distortion[0]) < 1e-4, four.coefficients
-    assert four.rms_px < 0.05, four.rms_px
-    assert abs(four.centre_px[0] - centre[0]) < 0.5 and abs(four.centre_px[1] - centre[1]) < 0.5, (
-        four.centre_px
-    )
-    five = fit_lens_from_pins(pins[:5], Alignment(), 1400.0, height, ideal)
-    assert five.num_coefficients == 2 and abs(five.coefficients[1]) < 1e-3, five.coefficients
-    assert abs(five.focal_px - focal) < 0.5, five.focal_px
-
-    # The sixth star does not buy a third term: it is another equation for the
-    # same five unknowns, so it cannot invent a coefficient the lens does not
-    # have -- and the readout says which way those extra pins were spent.
-    six = fit_lens_from_pins(pins, Alignment(), 1400.0, height, ideal)
-    assert six.num_coefficients == 2, six.num_coefficients
-    assert abs(six.coefficients[1]) < 1e-3, six.coefficients
-    assert abs(six.focal_px - focal) < 0.5, six.focal_px
-    capped = [note for note in six.notes if "theta^5" in note]
-    assert capped and "over-determine" in capped[0], six.notes
-
-    # Pinning is a loop, and it must not integrate its own deltas: the page turns
-    # each click back through the alignment that is on screen *when the click is
-    # taken*, so a pin is the photo pixel under the star, not a correction to the
-    # previous fit.  Re-measure the same five stars through three different
-    # alignments -- what the loop actually does as the photo jumps under the
-    # pointer -- and the pins have to come out identical; otherwise the fifth fit
-    # would drift away from the fourth, pin after pin.
-    for on_screen in (
-        Alignment(),
-        Alignment(roll_deg=3.0, dx=-40.0, dy=18.0),
-        Alignment(roll_deg=-7.5, mirrored=True, dx=12.0, dy=-25.0),
+    assert four.rms_px < 0.5, four.rms_px
+    for got, want, name in (
+        (four.centre_px(height)[0], truth.xc * height, "centre x"),
+        (four.centre_px(height)[1], truth.yc * height, "centre y"),
+        (four.camera.roll, truth.roll, "roll"),
+        (four.camera.tilt_x, truth.tilt_x, "tilt x"),
+        (four.camera.tilt_y, truth.tilt_y, "tilt y"),
     ):
-        measured = []
-        for point in pins[:5]:
-            click_x, click_y = on_screen.forward(point.x, point.y, 1400.0, height)
-            x, y = on_screen.inverse(float(click_x), float(click_y), 1400.0, height)
-            assert abs(x - point.x) < 1e-9 and abs(y - point.y) < 1e-9, (x, y, point)
-            measured.append(ControlPoint(point.name, point.star_x, point.star_y, x, y))
-        again = fit_lens_from_pins(measured, Alignment(), 1400.0, height, ideal)
-        assert abs(again.focal_px - five.focal_px) < 1e-6, (again.focal_px, five.focal_px)
-        drift = max(abs(a - b) for a, b in zip(again.coefficients, five.coefficients))
-        assert drift < 1e-6, (again.coefficients, five.coefficients)
+        assert abs(got - want) < 0.05, (name, got, want)
+    # Four stars only buy k1, and the readout says what to pin for the next term.
+    assert any("theta^5" in note for note in four.notes), four.notes
 
-    # A frozen focal length cannot absorb the overlay's own field of view being
-    # off: the linear term of the model is then nailed to the circle's radius, and
-    # k1 is left trying to describe a pure scale error.  This is why the focal
-    # length is fitted.
-    frozen = fit_lens_from_pins(
-        pins[:4], Alignment(), 1400.0, height, ideal, optimize_focal=False
-    )
-    assert frozen.focal_px == focal_ideal, frozen.focal_px
+    five = fit(pins, 5)
+    assert five.num_coefficients == 2 and abs(five.coefficients[1]) < 1e-3, five.coefficients
+    assert abs(five.focal_px - focal) < 1.0, five.focal_px
+
+    # The sixth star buys the third odd term and the seventh the fourth, so a lens
+    # with real theta^7 and theta^9 components comes back exactly.
+    deep_focal, deep_k = 581.2, (-0.098, 0.0048, -0.00062, 0.0002)
+    deep_truth, deep_pins = synthetic(deep_focal, deep_k)
+    deep = fit(deep_pins, 7)
+    assert deep.num_coefficients == 4, deep.num_coefficients
+    assert abs(deep.focal_px - deep_focal) < 1.0, (deep.focal_px, deep_focal)
+    for got, want in zip(deep.coefficients, deep_k):
+        assert abs(got - want) < 1e-3, (deep.coefficients, deep_k)
+    assert abs(deep.camera.tilt_x - deep_truth.tilt_x) < 1e-3, deep.camera.tilt_x
+    assert deep.rms_px < 1.0, deep.rms_px
+    # An eighth star is another equation for the same unknowns, and the readout
+    # says which way those extra pins were spent instead of promising a k5.
+    eight = fit(deep_pins, 8)
+    assert eight.num_coefficients == 4, eight.num_coefficients
+    capped = [note for note in eight.notes if "theta^9" in note]
+    assert capped and "over-determine" in capped[0], eight.notes
+
+    # A frozen focal length cannot absorb the starting curve's field of view being
+    # off: the linear term is then nailed to it, and k1 is left describing a pure
+    # scale error.  This is why the focal length is fitted.
+    frozen = fit(pins, 4, optimize_focal=False)
     assert frozen.rms_px > 20.0 * max(four.rms_px, 1e-6), (frozen.rms_px, four.rms_px)
     print(
         f"    synthetic: 4 pins -> f {four.focal_px:.2f} k1 {four.coefficients[0]:.5f}"
-        f" ({four.rms_px:.4f} px), frozen f -> {frozen.rms_px:.1f} px"
+        f" ({four.rms_px:.4f} px), 7 pins -> f {deep.focal_px:.2f}"
+        f" ({deep.rms_px:.4f} px), frozen f -> {frozen.rms_px:.1f} px,"
+        f" restate {four.restate_px:.2f} px"
     )
 
-    try:
-        fit_lens_from_pins(pins[:3], Alignment(), 1400.0, height, ideal)
-    except ValueError as error:
-        assert "at least 4" in str(error), error
-    else:  # pragma: no cover - the guard is the point
-        raise AssertionError("three pins were allowed to calibrate the lens")
-
+    # Below four pins there is no lens to measure -- the axis and the attitude are
+    # what they determine -- and the fit says so instead of inventing a curve.
+    three = fit(pins, 3)
+    assert not three.measured and three.focal_px is None, (three.measured, three.focal_px)
+    assert three.lens is start.lens, three.lens
+    assert any("place the axis" in note for note in three.notes), three.notes
     sample = Path(__file__).resolve().parent.parent / "sampleimages" / "00000687.jpg"
     if not sample.is_file():
         print(f"    {sample.name} not found: skipping the lens round trip")
@@ -908,103 +952,299 @@ def check_pinned_lens() -> None:
     assert client.post("/api/open", json={"path": str(sample)}).status_code == 200
     session = store.session
     width_px, height_px = float(session.width), float(session.height)
-    shown = client.get("/api/session?projection=equidistant&fov=180&mag=4.5").get_json()
+    shown = client.get("/api/session?projection=fisheye&fov=180&mag=4.5").get_json()
     rings = shown["overlay"]["stars"]
-    solved = client.post(
-        "/api/align",
-        json={"projection": "equidistant", "fov_deg": 180.0, "mag_limit": 5.5},
+
+    # The real frame with a made-up photograph: the stars are a *known* camera's,
+    # 7 deg off the zenith, so the fit has an answer it can be held to.  That is
+    # the whole wire path -- /api/live, the camera fit, the re-projected overlay
+    # and /api/save -- without needing a solved camera to invent the truth.
+    index = {str(name): position for position, name in enumerate(session.field.names)}
+    chosen = [ring for ring in rings if ring["name"] in index][:7]
+    assert len(chosen) == 7, f"only {len(chosen)} of the rings are in the field"
+    directions = np.array([session.field.enu[index[ring["name"]]] for ring in chosen])
+    truth_focal, truth_k = 560.0, (-0.098, 0.0048, -0.00062)
+    truth = CameraModel(
+        lens=LensModel.from_fisheye(
+            truth_focal, truth_k, height_px=height_px, sigma_edge=session.circle.sigma_edge
+        ),
+        xc=0.52, yc=0.47, roll=math.radians(12.0), tilt_x=0.10, tilt_y=-0.07,
     )
-    assert solved.status_code == 200, solved.get_json()
-    camera = store._outcome.solution.camera
-    # Where each ring's star really is in the photograph, so the pins are honest.
-    seen = {}
-    for ring in rings:
-        index = session.field.names.index(ring["name"])
-        px, py = camera.pixel_from_altaz(
-            np.array([session.field.alt[index]]),
-            np.array([session.field.az[index]]),
-            height_px,
-        )
-        seen[ring["name"]] = (float(px[0]), float(py[0]))
-    every = [
-        ControlPoint(ring["name"], ring["x"], ring["y"], *seen[ring["name"]]) for ring in rings
-    ]
-    page, _ = fit_alignment(every, width_px, height_px, 0.0, camera.mirrored)
-    # Pins have to span the field -- a lens fitted from one radius band is being
-    # extrapolated everywhere else -- so take them rim inwards rather than in the
-    # order the catalogue happens to list them.
-    by_sigma = sorted(every, key=lambda point: camera.sigma_from_pixel(point.x, point.y, height_px))
-    spread = np.linspace(0, len(by_sigma) - 1, min(6, len(by_sigma))).astype(int)
-    ordered = [by_sigma[index] for index in spread[::-1]]
-
-    def post(count: int) -> dict:
-        body = {
-            "projection": "equidistant",
-            "fov_deg": 180.0,
-            "mag_limit": 4.5,
-            "roll_deg": page.roll_deg,
-            "mirrored": page.mirrored,
-            "dx": page.dx,
-            "dy": page.dy,
-            "points": [
-                {
-                    "name": point.name,
-                    "star_x": point.star_x,
-                    "star_y": point.star_y,
-                    "x": point.x,
-                    "y": point.y,
-                }
-                for point in ordered[:count]
-            ],
-        }
-        reply = client.post("/api/live", json=body)
-        assert reply.status_code == 200, reply.get_data(as_text=True)[:200]
-        return reply.get_json()
-
-    three = post(3)
-    assert three["lens"] is None and not three.get("lens_error"), three.get("lens_error")
-    assert session.pinned_lens is None, "three pins left a lens behind"
-
-    four_pins = post(4)
-    lens = four_pins["lens"]
-    assert lens is not None, four_pins.get("lens_error")
-    assert lens["num_coefficients"] == 1, lens["num_coefficients"]
-    assert lens["pins"] == 4 and lens["coefficients"], lens
-    assert 300.0 < lens["focal_px"] < 900.0, lens["focal_px"]
-    assert four_pins["rms_px"] < 10.0, four_pins["rms_px"]
-    overlay = four_pins["overlay"]
-    assert overlay["calibrated"] is True, overlay["calibrated"]
-    # The rings keep their ideal positions -- a pin is defined against those, and
-    # they are what carries its field angle -- while being drawn at the calibrated
-    # place.  Losing the former would make the fifth pin meaningless.
-    ideal_positions = {(ring["name"], ring["x"], ring["y"]) for ring in rings}
-    for ring in overlay["stars"]:
-        assert (ring["name"], ring["x"], ring["y"]) in ideal_positions, ring
-        assert "draw_x" in ring and "draw_y" in ring, ring
-    applied = Alignment.from_dict(four_pins["alignment"])
-    for point in four_pins["points"]:
-        foot = applied.forward(point["x"], point["y"], width_px, height_px)
-        drawn = math.hypot(point["draw_x"] - float(foot[0]), point["draw_y"] - float(foot[1]))
-        assert abs(drawn - point["residual_px"]) < 0.1, (drawn, point["residual_px"])
-    assert abs(overlay["centre"]["x"] - lens["centre_px"]["x"]) < 1e-6, overlay["centre"]
-    assert session.pinned_lens is not None and session.seed_lens() is session.pinned_lens.lens, (
-        "the solve would not start from the lens the pins measured"
-    )
-
-    five_pins = post(5)
-    assert five_pins["lens"]["num_coefficients"] == 2, five_pins["lens"]["num_coefficients"]
+    click_x, click_y = truth.pixel_from_enu(directions, height_px)
+    body = {
+        "projection": "fisheye",
+        "fov_deg": 180.0,
+        "mag_limit": 4.5,
+        "points": [
+            {"name": ring["name"], "x": float(px), "y": float(py)}
+            for ring, px, py in zip(chosen, click_x, click_y)
+        ],
+    }
+    reply = client.post("/api/live", json=body)
+    assert reply.status_code == 200, reply.get_data(as_text=True)[:300]
+    fitted = reply.get_json()
+    camera = fitted["camera"]
+    assert fitted["lens"] is not None and fitted["lens"]["measured"], fitted.get("lens_error")
+    assert fitted["lens"]["num_coefficients"] == 4, fitted["lens"]["num_coefficients"]
+    assert abs(camera["roll_deg"] - 12.0) < 0.5, camera["roll_deg"]
+    assert abs(camera["tilt_x_deg"] - math.degrees(0.10)) < 0.5, camera["tilt_x_deg"]
+    assert abs(camera["centre_px"]["x"] - 0.52 * width_px) < 1.0, camera["centre_px"]
+    assert abs(camera["centre_px"]["y"] - 0.47 * height_px) < 1.0, camera["centre_px"]
+    wanted_alt = 90.0 - math.degrees(math.atan(math.hypot(0.10, 0.07)))
+    assert abs(camera["pointing_alt_deg"] - wanted_alt) < 0.5, camera["pointing_alt_deg"]
+    assert abs(fitted["lens"]["focal_px"] - truth_focal) < 10.0, fitted["lens"]["focal_px"]
+    assert fitted["rms_px"] < 2.0, fitted["rms_px"]
     print(
-        f"    sample frame: 4 pins -> f {lens['focal_px']:.0f} px/rad"
-        f" k {[round(k, 4) for k in lens['coefficients']]}"
-        f" ({four_pins['rms_px']:.2f} px); 5 pins ->"
-        f" {five_pins['lens']['num_coefficients']} k terms ({five_pins['rms_px']:.2f} px);"
-        f" rim {overlay['theta_edge_deg']:.2f} deg"
+        f"    sample frame: 7 pins -> f {fitted['lens']['focal_px']:.1f} px/rad"
+        f" (truth {truth_focal:.1f}), roll {camera['roll_deg']:.2f} deg,"
+        f" pointing alt {camera['pointing_alt_deg']:.2f} deg,"
+        f" {fitted['rms_px']:.2f} px rms"
     )
 
-    # Undoing a pin drops back below the threshold, so the lens goes with it --
-    # otherwise the solver would keep starting from a lens no pins describe.
-    back = post(3)
-    assert back["lens"] is None and session.pinned_lens is None, back.get("lens_error")
+    # The artefact is the camera the pins measured, in pixels of the photograph: no
+    # composition with the drag, because the fit never read it.
+    saved = client.post("/api/save", json=body)
+    assert saved.status_code == 200, saved.get_json()
+    artefact = json.loads(Path(saved.get_json()["path"]).read_text())
+    assert artefact["format"] == "lens_calibration/2", artefact["format"]
+    assert artefact["lens_source"] == "pins", artefact["lens_source"]
+    assert artefact["pins"]["measured"] is True, artefact["pins"]
+    for key in ("roll_deg", "tilt_x_deg", "tilt_y_deg", "pointing_alt_deg"):
+        assert abs(artefact["camera"][key] - camera[key]) < 1e-6, (key, artefact["camera"][key])
+    assert abs(artefact["camera"]["centre_px"]["x"] - camera["centre_px"]["x"]) < 1e-6
+    assert abs(
+        LensModel.from_dict(artefact["lens"]).theta_edge_deg
+        - session.pins.lens.theta_edge_deg
+    ) < 1e-3, artefact["lens"]
+    # Artefacts written before the series carried sigma^9 must still load: the
+    # term they never had is zero, not an error.
+    legacy = LensModel.from_dict(dict(artefact["lens"], coeffs=artefact["lens"]["coeffs"][:4]))
+    assert len(legacy.coeffs_deg) == 5 and legacy.coeffs_deg[4] == 0.0, legacy.coeffs_deg
+    print(f"    saved {Path(saved.get_json()['path']).name}: {saved.get_json()['bytes']} bytes")
+
+    # Undoing a pin drops back below the threshold, so the lens goes with it -- and
+    # the artefact refuses to be written at all.
+    back = client.post("/api/live", json={**body, "points": body["points"][:3]}).get_json()
+    assert back["lens"] is None and not back["lens_error"], back.get("lens_error")
+    assert session.pins is not None and not session.pins.measured
+    refused = client.post("/api/save", json={**body, "points": body["points"][:3]})
+    assert refused.status_code == 400, refused.get_json()
+    assert "no lens measured" in refused.get_json()["error"], refused.get_json()
+
+
+
+
+def check_calibration_beside_frame() -> None:
+    """The artefact is written beside the photograph it describes.
+
+    A folder of calibrations keyed by file name is a second place to keep in step
+    with the frames: rename a frame and its JSON no longer names it, copy a
+    sequence and the JSONs stay behind.  The save now goes next to the file --
+    same folder, same stem -- unless a folder is asked for explicitly.  An upload
+    is the exception the browser forces: the server only ever has its own copy
+    under the temporary directory, so writing there would lose the file, and it
+    goes where saves have always gone instead.
+    """
+    from .server import UPLOAD_CALIBRATION_DIR, UPLOAD_DIR, FrameStore, create_app
+
+    sample = Path(__file__).resolve().parent.parent / "sampleimages" / "00000687.jpg"
+    if not sample.is_file():
+        print(f"    {sample.name} not found: skipping the save-path check")
+        return
+    folder = Path(tempfile.mkdtemp())
+    try:
+        photo = cv2.resize(
+            cv2.imread(str(sample), cv2.IMREAD_COLOR), (600, 600),
+            interpolation=cv2.INTER_AREA,
+        )
+        frame = folder / "night.jpg"
+        assert cv2.imwrite(str(frame), photo), frame
+
+        store = FrameStore(work_height=200)
+        session = store.load(frame)
+        assert session.calibration_dir is None, session.calibration_dir
+        assert session.calibration_path() == folder / "night.json", session.calibration_path()
+        written = session.save_calibration()
+        assert written.is_file() and written.parent == folder, written
+        payload = json.loads(written.read_text())
+        assert payload["image"]["path"] == str(frame), payload["image"]["path"]
+        assert session.summary()["calibration_path"] == str(written)
+
+        # An explicit folder still wins -- that is what --calibration-dir is for.
+        elsewhere = folder / "artefacts"
+        override = FrameStore(work_height=200, calibration_dir=elsewhere)
+        assert override.load(frame).calibration_path() == elsewhere / "night.json"
+
+        # A browser upload has no folder of its own to write back to.
+        uploaded = FrameStore(work_height=200)
+        client = create_app(uploaded).test_client()
+        posted = client.post(
+            "/api/open",
+            data={"file": (io.BytesIO(frame.read_bytes()), "uploaded.jpg")},
+            content_type="multipart/form-data",
+        )
+        assert posted.status_code == 200, posted.get_json()
+        assert Path(uploaded.session.path).parent == UPLOAD_DIR, uploaded.session.path
+        assert uploaded.session.calibration_path().parent == UPLOAD_CALIBRATION_DIR, (
+            uploaded.session.calibration_path()
+        )
+        assert client.get("/api/session").get_json()["calibration_path"].endswith(
+            "uploaded.json"
+        )
+        print(
+            f"    {frame.name} -> {written.name} beside it;"
+            f" an upload -> {UPLOAD_CALIBRATION_DIR}/uploaded.json"
+        )
+    finally:
+        (UPLOAD_DIR / "uploaded.jpg").unlink(missing_ok=True)
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+def check_corrected_preview() -> None:
+    """The corrected picture is the ideal equiangular lens, at the frame's size.
+
+    The preview exists to be *flashed* against the photograph, so four things
+    have to be true or it would lie in a plausible-looking way:
+
+    1. it is a resample of the measured camera onto the ideal one.  A synthetic
+       star at a known field angle lands where the equiangular curve puts that
+       angle, on the same azimuth -- the correction is a radial stretch about the
+       optical axis and nothing else;
+    2. a camera that is already ideal is left alone: the identity is the strongest
+       statement that the map is the lens and not a second opinion;
+    3. the raster is the photograph's own size, and the frame is still the frame:
+       a resample that changed the size would make the page's overlay wrong;
+    4. the overlay asked for with ``corrected=1`` is drawn through that same ideal
+       lens.  On the photograph the rings must mark where the *photograph* puts
+       the stars; on the corrected picture they must mark where the ideal lens
+       does.  Drawing them through the measured lens would show the correction
+       itself as an error -- the whole feature, inverted.
+    """
+    from .geometry import remap_to_ideal
+    from .server import FrameStore, create_app
+    from .session import CORRECTED_URL
+
+    sample = Path(__file__).resolve().parent.parent / "sampleimages" / "00000687.jpg"
+    if not sample.is_file():
+        print(f"    {sample.name} not found: skipping the corrected preview check")
+        return
+    folder = Path(tempfile.mkdtemp())
+    try:
+        height = width = 600.0
+        photo = cv2.resize(
+            cv2.imread(str(sample), cv2.IMREAD_COLOR), (int(width), int(height)),
+            interpolation=cv2.INTER_AREA,
+        )
+        frame = folder / "night.jpg"
+        assert cv2.imwrite(str(frame), photo), frame
+
+        # --- 1. the star goes where the ideal lens puts it ------------------
+        # The stand-in lens is an equisolid disc, whose rim is compressed by a
+        # good fraction of a pixel per pixel against the equiangular ideal: a
+        # correction of it is easy to see, and a map that did nothing would fail.
+        camera = CameraModel(lens=stand_in_lens(), xc=0.505, yc=0.497)
+        ideal = camera.ideal_equiangular()
+        assert ideal.lens.sigma_edge == camera.lens.sigma_edge, ideal.lens.sigma_edge
+        assert abs(ideal.lens.theta_edge_deg - camera.lens.theta_edge_deg) < 1e-9, (
+            "the ideal lens moved the rim angle"
+        )
+        # Equiangular is one odd power: theta proportional to sigma, exactly.
+        sigma = np.array([0.2, 0.5, 0.9])
+        rate = ideal.lens.theta(sigma) / sigma
+        assert np.allclose(rate, rate[0], rtol=0.0, atol=1e-12), rate
+
+        canvas = np.zeros((int(height), int(width), 3), np.uint8)
+        theta_want = math.radians(55.0)
+        radius_src = float(camera.lens.sigma(np.array([theta_want]))[0]) * height / 2.0
+        centre_x, centre_y = camera.centre_px(height)
+        azimuth = math.radians(35.0)
+        x0 = int(round(centre_x + radius_src * math.cos(azimuth)))
+        y0 = int(round(centre_y - radius_src * math.sin(azimuth)))
+        canvas[y0 - 2:y0 + 3, x0 - 2:x0 + 3] = 255
+
+        corrected = remap_to_ideal(canvas, camera, ideal)
+        assert corrected.shape == canvas.shape, corrected.shape
+        assert corrected[0, 0].max() == 0, "a corner outside the disc is not black"
+
+        def star_at(image: np.ndarray) -> tuple[float, float]:
+            ys, xs = np.nonzero(image.max(axis=2) > 40)
+            assert xs.size, "the synthetic star did not survive the resample"
+            return float(xs.mean()), float(ys.mean())
+
+        got_x, got_y = star_at(corrected)
+        radius_out = math.hypot(got_x - centre_x, centre_y - got_y)
+        want = float(ideal.lens.sigma(np.array([theta_want]))[0]) * height / 2.0
+        assert abs(radius_out - want) <= 2.0, (
+            f"the corrected star sits at {radius_out:.1f} px, the ideal lens says {want:.1f}"
+        )
+        got_azimuth = math.degrees(math.atan2(centre_y - got_y, got_x - centre_x))
+        assert abs(got_azimuth - 35.0) < 1.5, (
+            f"the correction moved the azimuth to {got_azimuth:.1f} deg"
+        )
+
+        # --- 2. correcting an ideal camera is the identity ------------------
+        plain_x, plain_y = star_at(remap_to_ideal(canvas, ideal, ideal))
+        assert abs(plain_x - x0) <= 1.5 and abs(plain_y - y0) <= 1.5, (
+            f"an already ideal camera moved the star from ({x0}, {y0}) to"
+            f" ({plain_x:.1f}, {plain_y:.1f})"
+        )
+
+        # --- 3. the endpoint renders it at the photograph's own size --------
+        store = FrameStore(work_height=200)
+        store.load(frame)
+        store.session.configure(
+            utc=dt.datetime(2026, 1, 18, 9, 15, 17, tzinfo=dt.timezone.utc),
+            latitude=64.5724,
+            longitude=-149.262,
+        )
+        client = create_app(store).test_client()
+        query = "projection=equisolid&fov=180"
+        rendered = client.get(f"{CORRECTED_URL}?{query}")
+        assert rendered.status_code == 200, rendered.get_json()
+        assert rendered.mimetype == "image/png", rendered.mimetype
+        decoded = cv2.imdecode(np.frombuffer(rendered.data, np.uint8), cv2.IMREAD_COLOR)
+        assert decoded is not None and decoded.shape == photo.shape, (
+            f"{None if decoded is None else decoded.shape} is not the photograph's {photo.shape}"
+        )
+        # An equisolid disc is not equiangular, so the pixels have to have moved:
+        # a render identical to the file would be a preview of nothing.
+        moved = float(np.abs(decoded.astype(np.float64) - photo.astype(np.float64)).mean())
+        assert moved > 0.5, f"the corrected render differs from the frame by only {moved:.2f}"
+        other = client.get(f"{CORRECTED_URL}?projection=equisolid&fov=190")
+        assert other.status_code == 200 and other.data != rendered.data, (
+            "a different lens produced the same corrected picture"
+        )
+        assert create_app(FrameStore()).test_client().get(CORRECTED_URL).status_code == 409, (
+            "a server with no frame did not refuse to render one"
+        )
+
+        # --- 4. the overlay is drawn through the same ideal lens ------------
+        plain = client.get(f"/api/session?{query}").get_json()
+        switched = client.get(f"/api/session?{query}&corrected=1").get_json()
+        assert plain["corrected"]["url"] == CORRECTED_URL, plain["corrected"]
+        assert plain["corrected"]["projection"] == "equiangular", plain["corrected"]
+        assert plain["corrected"]["active"] is False, plain["corrected"]
+        assert switched["corrected"]["active"] is True, switched["corrected"]
+        before, after = plain["overlay"], switched["overlay"]
+        assert before and after
+        assert abs(before["radius_px"] - after["radius_px"]) < 1e-6, (
+            "the corrected overlay moved the disc rim"
+        )
+        where = {star["name"]: (star["x"], star["y"]) for star in after["stars"]}
+        shifts = [
+            math.hypot(star["x"] - where[star["name"]][0], star["y"] - where[star["name"]][1])
+            for star in before["stars"] if star["name"] in where
+        ]
+        assert shifts and max(shifts) > 1.0, (
+            "the corrected overlay is the measured one, so the correction would"
+            " look like an error"
+        )
+        print(
+            f"    ideal lens: a 55 deg star moves {radius_src - radius_out:+.1f} px;"
+            f" rings shift up to {max(shifts):.1f} px; {len(rendered.data)} byte PNG"
+        )
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
 
 
 #: Run in order; each one is a statement the rest of the package relies on.
@@ -1013,13 +1253,14 @@ CHECKS = (
     check_sky_orientation,
     check_pixel_handedness,
     check_round_trip,
-    check_synthetic_solve,
     check_web_ui,
     check_frame_picker,
     check_live_alignment,
     check_pinned_lens,
     check_sky_aids,
     check_field_for_today,
+    check_calibration_beside_frame,
+    check_corrected_preview,
 )
 
 

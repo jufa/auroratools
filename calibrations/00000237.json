@@ -1,0 +1,273 @@
+{
+  "format": "lens_calibration/2",
+  "created_utc": "2026-11-16T15:32:02.627497+00:00",
+  "image": {
+    "path": "/var/folders/b8/ynbh0fqj4v16vdyt_lwk6f8r0000gn/T/lens_calibration_uploads/00000237.jpg",
+    "width": 1400,
+    "height": 1400,
+    "work_height": 1400
+  },
+  "meta": {
+    "path": "/var/folders/b8/ynbh0fqj4v16vdyt_lwk6f8r0000gn/T/lens_calibration_uploads/00000237.jpg",
+    "width": 4000,
+    "height": 4000,
+    "captured_local": "2026-09-10T03:16:54",
+    "captured_utc": "2026-09-10T03:16:54+00:00",
+    "utc_offset_minutes": null,
+    "time_source": "exif DateTimeOriginal, timezone ASSUMED UTC (correct me)",
+    "latitude": 55.814600999999996,
+    "longitude": -97.9247819,
+    "altitude_m": 199.0,
+    "position_source": "exif GPS",
+    "camera": "SONY ZV-E10",
+    "lens": null,
+    "exposure_s": null,
+    "iso": null,
+    "f_number": null,
+    "focal_length_mm": null
+  },
+  "time": {
+    "captured_utc": "2026-09-10T03:16:54+00:00",
+    "source": "exif DateTimeOriginal, timezone ASSUMED UTC (correct me)",
+    "latitude": 55.814600999999996,
+    "longitude": -97.9247819,
+    "position_source": "exif GPS"
+  },
+  "circle": {
+    "xc_frac": 0.4875797943248596,
+    "yc_frac": 0.4977554166214101,
+    "sigma_edge": 0.9620217616223592,
+    "diameter_fraction": 1.9240435232447184,
+    "axis_ratio": 0.9702856253907055,
+    "contrast": 1.0,
+    "confidence": 1.0
+  },
+  "lens": {
+    "type": "odd_polynomial_theta_of_sigma",
+    "sigma_normalisation": "sigma = r / (H/2), H = frame height in pixels",
+    "powers": [
+      1,
+      3,
+      5,
+      7,
+      9
+    ],
+    "coeffs_unit": "deg",
+    "coeffs": [
+      68.92810806823474,
+      5.4636428720797525,
+      36.464739715349594,
+      -63.947065135679516,
+      50.42155339255102
+    ],
+    "theta_sigma_edge_deg": 88.0419,
+    "sigma_edge": 0.9620217616223592
+  },
+  "lens_source": "pins",
+  "camera": {
+    "xc": 0.49367895535913037,
+    "yc": 0.49862234161849156,
+    "centre_px": {
+      "x": 691.1505375027825,
+      "y": 698.0712782658882
+    },
+    "roll_deg": 116.63286028681307,
+    "tilt_x_deg": -0.15205306863566664,
+    "tilt_y_deg": 0.17180859672024926,
+    "pointing_alt_deg": 89.77057078018069,
+    "pointing_az_deg": 318.4907112801977,
+    "mirrored": false,
+    "theta_edge_deg": 88.04192605705302,
+    "sigma_edge": 0.9620217616223592,
+    "lens": {
+      "type": "odd_polynomial_theta_of_sigma",
+      "sigma_normalisation": "sigma = r / (H/2), H = frame height in pixels",
+      "powers": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "coeffs_unit": "deg",
+      "coeffs": [
+        68.92810806823474,
+        5.4636428720797525,
+        36.464739715349594,
+        -63.947065135679516,
+        50.42155339255102
+      ],
+      "theta_sigma_edge_deg": 88.0419,
+      "sigma_edge": 0.9620217616223592
+    }
+  },
+  "overlay": {
+    "projection": "fisheye",
+    "fov_deg": 177.765105177788,
+    "focal_px": 582.3,
+    "coefficients": [
+      -0.10455,
+      -0.0008,
+      0.0
+    ]
+  },
+  "alignment": {
+    "roll_deg": 115.3,
+    "mirrored": false,
+    "dx": 0.0,
+    "dy": 0.0
+  },
+  "pins": {
+    "pins": 12,
+    "measured": true,
+    "focal_px": 584.2268131489284,
+    "coefficients": [
+      -0.11471910842413585,
+      0.011182919772194315,
+      -0.006787414977047193,
+      0.001527017059801393
+    ],
+    "coefficients_unit": "k1 .. kn in r = f*theta*(1 + k1 t^2 + k2 t^4 + ...), theta in radians",
+    "num_coefficients": 4,
+    "centre_px": {
+      "x": 691.1505375027825,
+      "y": 698.0712782658882
+    },
+    "roll_deg": 116.63286028681307,
+    "tilt_x_deg": -0.15205306863566664,
+    "tilt_y_deg": 0.17180859672024926,
+    "pointing_alt_deg": 89.77057078018069,
+    "pointing_az_deg": 318.4907112801977,
+    "mirrored": false,
+    "rms_px": 0.4380377132368269,
+    "max_px": 0.8992013646776262,
+    "rms_deg": 0.05566663916567394,
+    "covers_sigma": 0.9393715184997172,
+    "restate_px": 0.48534403527628456,
+    "notes": [
+      "12 pins, but the fit stops at the theta^9 term: stars past the first 7 over-determine the same unknowns rather than adding coefficients"
+    ],
+    "points": [
+      {
+        "name": "Polaris",
+        "x": 394.8453775750549,
+        "y": 855.1461368155806,
+        "residual_px": 0.373160411161121,
+        "draw_x": 395.1734916536027,
+        "draw_y": 854.9684014957461
+      },
+      {
+        "name": "HIP 112724",
+        "x": 622.6606714427741,
+        "y": 910.9901876129438,
+        "residual_px": 0.6425097497727887,
+        "draw_x": 622.8904356509903,
+        "draw_y": 911.590210268496
+      },
+      {
+        "name": "Enif",
+        "x": 1156.7268230138918,
+        "y": 759.1383592103662,
+        "residual_px": 0.20909608329824597,
+        "draw_x": 1156.79810393172,
+        "draw_y": 759.3349303242263
+      },
+      {
+        "name": "Sadalmelik",
+        "x": 1234.2878688867263,
+        "y": 790.2660017185294,
+        "residual_px": 0.5376129840956702,
+        "draw_x": 1233.7519510394359,
+        "draw_y": 790.2233428199987
+      },
+      {
+        "name": "Algenib",
+        "x": 1051.7888855499964,
+        "y": 1120.8469357563117,
+        "residual_px": 0.39516938460262996,
+        "draw_x": 1052.180737949955,
+        "draw_y": 1120.79584232059
+      },
+      {
+        "name": "Nunki",
+        "x": 1185.2838210411437,
+        "y": 264.2308300753752,
+        "residual_px": 0.4492795333610925,
+        "draw_x": 1185.5040345744815,
+        "draw_y": 264.62243970093624
+      },
+      {
+        "name": "Unukalhai",
+        "x": 605.869410952358,
+        "y": 103.99622215095394,
+        "residual_px": 0.16116305950393572,
+        "draw_x": 605.8858269676533,
+        "draw_y": 103.83589733631038
+      },
+      {
+        "name": "Arcturus",
+        "x": 345.0851012601647,
+        "y": 196.44143994530134,
+        "residual_px": 0.28927557618479577,
+        "draw_x": 345.3341363019515,
+        "draw_y": 196.29426009974054
+      },
+      {
+        "name": "Izar",
+        "x": 384.696837694645,
+        "y": 241.82836509964721,
+        "residual_px": 0.8992013646776262,
+        "draw_x": 383.88171197477755,
+        "draw_y": 241.4487163737852
+      },
+      {
+        "name": "HIP 74666",
+        "x": 427.6119870878088,
+        "y": 287.94935056888403,
+        "residual_px": 0.15389728617820717,
+        "draw_x": 427.47465797735185,
+        "draw_y": 287.8798877002842
+      },
+      {
+        "name": "Alkaid",
+        "x": 263.04040710930866,
+        "y": 466.27855096032994,
+        "residual_px": 0.2014394863248157,
+        "draw_x": 263.1511727317178,
+        "draw_y": 466.44680328139304
+      },
+      {
+        "name": "Deneb",
+        "x": 815.8962198141556,
+        "y": 717.9501930649576,
+        "residual_px": 0.27788113817064136,
+        "draw_x": 815.6216811088481,
+        "draw_y": 717.9931631270829
+      }
+    ],
+    "lens": {
+      "type": "odd_polynomial_theta_of_sigma",
+      "sigma_normalisation": "sigma = r / (H/2), H = frame height in pixels",
+      "powers": [
+        1,
+        3,
+        5,
+        7,
+        9
+      ],
+      "coeffs_unit": "deg",
+      "coeffs": [
+        68.92810806823474,
+        5.4636428720797525,
+        36.464739715349594,
+        -63.947065135679516,
+        50.42155339255102
+      ],
+      "theta_sigma_edge_deg": 88.0419,
+      "sigma_edge": 0.9620217616223592
+    }
+  },
+  "notes": [
+    "12 pins, but the fit stops at the theta^9 term: stars past the first 7 over-determine the same unknowns rather than adding coefficients"
+  ]
+}

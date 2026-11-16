@@ -12,14 +12,15 @@ from youtubeuploader import get_youtube_client, upload_video
 """
 TOWN          REGION  UNIT        LATITUDE          LONGITUDE             DECLINATION
 MIDDLEMARCH   NZ      17          -45.515739	       170.1136955          +24
-OTAGO (PISA)  NZ      16          -44.9737516	       169.2412883          +24          
+ŌTĀKOU        NZ      16          -44.9737516	       169.2412883          +24          
 FAIRBANKS     AK      12           64.8209725       -147.542903           +16
 PLUMAS        MB      15           50.4216856667	   -99.088932           +5
+THOMPSON      MB      14           55.8	             -97.9                +3
 
 
 """
 steps = {
-  "download":   0,
+  "download":   1,
   "keogram":    1,
   "polarwarp":  1,
   "composite":  1,

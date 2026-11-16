@@ -495,7 +495,7 @@ class Compositor:
         draw.text((x_left_anchor, y_current_left), "AUROREYE.CA", font=font_small, fill=(0,255,128,255))
         y_current_left += font_size_large_scaled * line_spacing
         
-        draw.multiline_text((x_left_anchor, y_current_left), self.unit_text, font=font_large, fill=text_color)
+        draw.multiline_text((x_left_anchor, y_current_left), self.unit_text, font=font_small, fill=text_color)
 
         self.time_check("drawing bootom left text ")
 
